@@ -11,6 +11,10 @@
  08/16/2012		Added sponsor scroller code to the cleanup() function [SB]
  				Updated jQuery selectors for hiding honor roll table in Firefox, cleanup()
  				Fixed issue with .trim() function that was breaking honor roll function in rewritePersonalPage() and rewriteTeamPage()
+ 				
+ 10/09/2012		Fixed checkLogin() function for sponsorship forms
+ 				Fixed facebook() function to provide a URL Facebook can easily archive
+ 				
 ====================================================================
 */
 
@@ -155,6 +159,7 @@ FAF = {
                 $("h1,h2,.BodyTextFont,h3").addClass("fixtitelwidth")
 
             };
+            
             // Fix the height of the Colorbox and Sharethis transparent overlays
             if ($.browser.msie) { setTimeout(function() { $('#cboxOverlay, #stOverlay').css('height', $(document).height()); }, 2000); }
 
@@ -201,6 +206,9 @@ FAF = {
 
             // MyHQ Reports table
             $('.lr-listtbl').closest('div').addClass('reportsContainer');
+
+			// MyHQ Edit Personal Page edits:
+			
 
             // Email History Log
             if (location.href.indexOf('faf/email/emailLog.asp') > -1) {
@@ -293,13 +301,18 @@ FAF = {
 
         checkLogin: function() {
             function getLoginState() {
-                $.get('/faf/login/partMenu.asp?ievent=' + FAF.eID, function(data) {
-                    if ($(data).find('#contentPrimary > .gutter > table .highlighttitlemenu').length > 0) {
-                        FAF.isLoggedIn = true;
-                    } else {
-                        FAF.isLoggedIn = false;
-                    }
-                });
+            	// don't do the check on the sponsorship forms; breaks for some reason...
+				if (location.href.indexOf('/faf/SponsorSSL/OrderReview.asp?')==-1 && location.href.indexOf('/faf/SponsorSSL/OrderOK.asp')==-1) {
+					$.get('/faf/login/partMenu.asp?ievent=' + FAF.eID, function(data) {
+						if ($(data).find('#contentPrimary > .gutter > table .highlighttitlemenu').length > 0) {
+							FAF.isLoggedIn = true;
+						} else {
+							FAF.isLoggedIn = false;
+						}
+					});
+				} else {
+					FAF.isLoggedIn = false;	
+				}
             }
             // Check FAF login status
             if ($('#contentSecondary .globalNav').length) {
@@ -1229,12 +1242,23 @@ FAF = {
 
                     if (f.hideAll == "false") {
 
+						// create a URL Facebook can archive, strip the session variables...
+						var url = '';
+						var firstPart = location.href.split('/faf')[0];
+						if (location.href.indexOf('/faf/donorReg/donorPledge.asp')>-1) { // personal page
+							url = encodeURIComponent(firstPart + '/faf/donorReg/donorPledge.asp?ievent=' + FAF.eID + '&supId=' + FAF.sID);
+						} else if (location.href.indexOf('/faf/search/searchTeamPart.asp')>-1) { // team page
+							url = encodeURIComponent(firstPart + '/faf/search/searchTeamPart.asp?ievent=' + FAF.eID + '&team=' + FAF.tID);
+						} else {
+							url = encodeURIComponent(location.href);
+						}
+
                         // Team page title:
                         if (typeof fafJSONteam != 'undefined') {
                             var title = 'Leave an encouraging note for';
                             var name = fafJSONteam.name;
                             title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
-                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + location.href + '" data-num-posts="2" data-width="470"></div>');
+                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="470"></div>');
                         }
 
                         // Personal page title:
@@ -1242,7 +1266,7 @@ FAF = {
                             var title = 'Leave an encouraging note for';
                             var name = fafJSONparticipant.name;
                             title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
-                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + location.href + '" data-num-posts="2" data-width="470"></div>');
+                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="470"></div>');
                         }
 
                         // Load Facebook like button and comments
