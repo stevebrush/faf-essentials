@@ -15,14 +15,22 @@
  10/09/2012		Fixed checkLogin() function for sponsorship forms
  				Fixed facebook() function to provide a URL Facebook can easily archive
  				
+ 11/02/2012		Updated checkLogin() function to use new session JSON object [SB]
+ 				Updated cleanup() function [SB]
+ 				Added new function sponsorScroller() to enclose the existing sponsor code [SB]
+ 				Added new function headquartersMenu() to enclose the existing My HQ menu code [SB]
+ 				Added new function logo() to enclose the existing logo dimensions code [SB]
+ 				Updated Homepage Facebook Newsfeed plugin to be Comments plugin instead
+ 				General cleanup of functions; removed document.ready where it was unneccessary or duplicated
+ 				
 ====================================================================
 */
 
 FAF = {
 
     Config: {
-        version: '3.0.9',
-        lastRevised: '02/09/2012',
+        version: '3.1.0',
+        lastRevised: '11/02/2012',
         packageType: "essentials"
     },
 
@@ -84,10 +92,21 @@ FAF = {
                 primary: null,
                 secondary: null
             }
+        },
+        session: {
+        	id: null,
+        	login: 'false'
         }
     },
 
     Methods: {
+
+		
+		/* 
+		 ==============
+		  CORE METHODS
+		 ==============
+		*/
 
         initialize: function(callback) {
             FAF.Options = $.extend(FAF.Defaults, FAF.Options);
@@ -99,11 +118,8 @@ FAF = {
             FAF.root = FAF.protocol + '//' + FAF.host;
             FAF.path = FAF.protocol + '//' + FAF.host + window.location.pathname;
             FAF.thisURL = window.location.href.toLowerCase();
-            FAF.isLoggedIn;
 
-            // Post Facebook SDK
-            this.initFacebook();
-
+			// Get event JSON
             this.fetchJSON(callback);
         },
 
@@ -127,10 +143,10 @@ FAF = {
             $('font:contains("*")[color="#FF0000"]').addClass('FAFFormRequiredFieldMarker');
             $('font:contains("*")[color="#ff0000"]').addClass('FAFFormRequiredFieldMarker');
             $('font:contains("*")[color="red"]').addClass('FAFFormRequiredFieldMarker');
-
             $('font:contains("Incorrect Login: Please try again.")').addClass('FAFFormRequiredFieldMarker');
             $('font:contains("There has been an error processing your transaction. Please check your credit card information and billing address and try again, or contact your credit card issuer.")').addClass('FAFFormRequiredFieldMarker');
 
+			// My HQ
             $("li:empty").addClass("myHQbodyli");
             $("td").each(function() {
                 if ($(this).attr("align") != null) $(this).css("text-align", $(this).attr("align"));
@@ -142,23 +158,6 @@ FAF = {
                 if ($(this).width() > 695)
                     $(this).wrap("<div class='tablescroll'></div>");
             });
-
-			$(".eventLogo img").each(function() {
-                var max_w = 325;
-                var max_h = 142;
-                var m1 = max_w / max_h;
-                var m2 = $(this).width() / $(this).height();
-                if (m2 > m1) {
-                    $(this).width(max_w);
-                } else {
-                    $(this).height(max_h);
-                }
-            });
-
-            if (location.href.indexOf('faf/home/default.asp') > -1) {
-                $("h1,h2,.BodyTextFont,h3").addClass("fixtitelwidth")
-
-            };
             
             // Fix the height of the Colorbox and Sharethis transparent overlays
             if ($.browser.msie) { setTimeout(function() { $('#cboxOverlay, #stOverlay').css('height', $(document).height()); }, 2000); }
@@ -170,45 +169,8 @@ FAF = {
                 $('#myHQnav').closest('#contentPrimary').closest('.gutter').attr('id', 'wrapMyHQ');
             }
 
-            // Rewrite MyHQ menu
-            if ($('.highlighttitlemenu').length || $('.highlighttitlemenugame').length) {
-                var menuHtml = '<ul id="myHQmenu" class="clearfix">';
-                $('#myHQnav table:first td').each(function() {
-                    var thisClass = '';
-                    var text = $.trim($(this).text().replace('KnowledgeGame', 'Knowledge Game'));
-                    var link = ($(this).find('a').length) ? $(this).find('a').attr('href') : "#";
-                    var styles = (typeof $(this).attr('bgcolor') != "undefined") ? 'background-color:' + $(this).attr('bgcolor') + ';' : '';
-                    if ($(this).hasClass('highlighttitlemenu')) {
-                        thisClass = ' class="highlighttitlemenu"';
-                    } else {
-                        thisClass = ' class="subnav"';
-                    }
-                    if (text != "" && text != "&nbsp;") {
-                        menuHtml += '<li' + thisClass + '><a href="' + link + '" style="' + styles + '">' + text + '</a></li>';
-                    }
-                });
-                menuHtml += '</ul>';
-                $('#myHQnav').after(menuHtml);
-                $('#myHQmenu li:last').addClass('logout');
-
-                // Rewrite submenu
-                menuHtml = '<ul id="myHQsubmenu" class="menuSub clearfix">';
-                $('#myHQnav table:last a').each(function() {
-                    text = $.trim($(this).text());
-                    link = $(this).attr('href');
-                    var target = (text.match('View')) ? ' target="_blank"' : '';
-                    menuHtml += '<li><a href="' + link + '"' + target + '>' + text + '</a></li>';
-                });
-                menuHtml += '</ul>';
-                $('#myHQmenu').after(menuHtml);
-                $('#myHQsubmenu li:last').addClass('logout');
-            }
-
             // MyHQ Reports table
             $('.lr-listtbl').closest('div').addClass('reportsContainer');
-
-			// MyHQ Edit Personal Page edits:
-			
 
             // Email History Log
             if (location.href.indexOf('faf/email/emailLog.asp') > -1) {
@@ -220,113 +182,31 @@ FAF = {
             if (location.href.indexOf('/faf/donorReg/donorPledge.asp')>-1) {
                 $('.leaderboard td.white:contains("Honor Roll")').closest('.leaderboard').hide();
             }
-            
-            // Sponsor Scroller
-			if (typeof sponsorSeries != "undefined" && location.href.indexOf('/faf/home/default.asp')>-1) {
-			
-				//$('<table class="sponsorTable" cellpadding="0" cellspacing="0"><tr><td class="sponsorHeader">Special Thanks To:</td></tr><tr><td class="sponsorLogos"><div id="sponsorSlides"></div></td></tr></table>').prependTo('#contentTirtiary .gutter');
-			
-				var sponsorHtml = '<div id="sponsorScroll"><h6 class="sidebarTitle sponsorTitle">Special Thanks To:</h6><div class="sponsorBox"></div></div>';
-				$('#contentTertiary .sponsorScroll').before(sponsorHtml);
-			
-				for (var i=0;i<sponsorSeries.length;i++) {
-					$('<div class="slide"><a href="'+sponsorRealUrl[i]+'"><img src="/AccountTempFiles'+sponsorSeries[i]+'" alt="'+sponsorCompanyName[i]+'" /></a></div>').appendTo('#sponsorScroll .sponsorBox');
-				}
-				
-				setTimeout(function() {
-					$('.sponsorBox img').each(function() {
-						var containerWidth = $('#contentTertiary .slide:eq(0)').width();
-						var containerHeight = $('#contentTertiary .slide:eq(0)').height();
-						var imageWidth = $(this).width();
-						var imageHeight = $(this).height();
-						if (imageWidth > imageHeight) { 
-							$(this).addClass('forceWidth'); 
-						} else if (imageWidth < imageHeight) {
-							$(this).addClass('forceHeight');
-						} else {
-							$(this).addClass('forceWidth');
-						}
-					});
-					$('.sponsorBox .slide').css('visibility','visible');
-					$('.sponsorBox').cycle();
-				},2000);
-			}
 
             // Remove 'nowrap'
             $('td[noWrap], td[nowrap]').removeAttr('noWrap').removeAttr('nowrap');
         },
 
-		initMiniLogin: function() {
-			// Add events to mini login form
-            $("#loginLink").click(function(){
-				if ($("#loginForm").is(":hidden")){
-					$("#loginForm").slideDown("normal");
-					$('a#loginLink span').text('Close');
-					$(this).addClass('loginLinkClose');
-				} else {
-					$("#loginForm").slideUp("normal");
-					$('a#loginLink span').text('Sign In');
-					$(this).removeClass('loginLinkClose');
-				}
-				return false;
-			});
-		},
-
-        initFacebook: function() {
-            $(document).ready(function() {
-                if (typeof fafJSONoptions.facebook != "undefined") {
-                    var f = fafJSONoptions.facebook;
-                    var appID = (typeof f.appId != "undefined" && f.appId != "") ? f.appId : FAF.Options.facebook.appId;
-                    var facebookHtml = ' \
-						<div id="fb-root"></div> \
-						<script>(function(d, s, id) { \
-						  var js, fjs = d.getElementsByTagName(s)[0]; \
-						  if (d.getElementById(id)) return; \
-						  js = d.createElement(s); js.id = id; \
-						  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=' + appID + '"; \
-						  fjs.parentNode.insertBefore(js, fjs); \
-						}(document, "script", "facebook-jssdk"));</script>';
-                    $('body').prepend(facebookHtml);
-                }
-            });
-        },
-
-        getUrlVars: function() {
-            var vars = {};
-            var parts = window.location.href.toLowerCase().replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
-                vars[key] = unescape(value.replace(/\+/g, " "));
-            });
-            return vars;
-        },
-
         checkLogin: function() {
-            function getLoginState() {
-            	// don't do the check on the sponsorship forms; breaks for some reason...
-				if (location.href.indexOf('/faf/SponsorSSL/OrderReview.asp?')==-1 && location.href.indexOf('/faf/SponsorSSL/OrderOK.asp')==-1) {
-					$.get('/faf/login/partMenu.asp?ievent=' + FAF.eID, function(data) {
-						if ($(data).find('#contentPrimary > .gutter > table .highlighttitlemenu').length > 0) {
-							FAF.isLoggedIn = true;
-						} else {
-							FAF.isLoggedIn = false;
-						}
-					});
-				} else {
-					FAF.isLoggedIn = false;	
-				}
-            }
-            // Check FAF login status
-            if ($('#contentSecondary .globalNav').length) {
-                if (!$('#contentSecondary .globalNav a:contains("Main Login")').length) {
-                    getLoginState();
-                } else {
-                    FAF.isLoggedIn = false;
-                }
-            } else {
-                getLoginState();
-            }
+        	FAF.isLoggedIn = (typeof fafJSONoptions != "undefined" && typeof fafJSONoptions.session.login != "undefined") ? (fafJSONoptions.session.login == "true") ? true : false : false;
+			FAF.sessionId = (typeof fafJSONoptions != "undefined" && typeof fafJSONoptions.session.id != "undefined") ? fafJSONoptions.session.id : this.getUrlVars()['kntae'+FAF.eID];
+			if (FAF.isLoggedIn) {
+				$('#login').hide();
+				$('#logout').show();
+			} else {
+				$('#login').show();
+				$('#logout').hide();
+			}
         },
 
-        rewritePersonalPage: function() {
+
+		/* 
+		 ===================
+		  PARTICIPANT PAGES
+		 ===================
+		*/
+		
+        personalPage: function() {
 
             if (FAF.thisURL.indexOf('donorpledge.asp') > -1) {
 
@@ -341,7 +221,6 @@ FAF = {
 					ppDonateLevels = '';
 
                 var txt = {
-                    //fbTitle: 'Leave an encouraging note for',
                     raised: 'Dollars Raised',
                     goal: 'My Personal Goal',
                     daysleft: 'Days Left To Give',
@@ -379,7 +258,7 @@ FAF = {
 
                 // Like
                 if (fafJSONoptions.facebook.hideLikeButton != "true") {
-                    ppHtml += '<div class="fb-like" data=href="' + location.href + '" data-send="true" data-width="450" data-show-faces="false"></div>';
+                    ppHtml += '<!-- FACEBOOK LIKE --><div id="facebookLikeBox"></div>';
                 }
 
                 // Personal Image/Video
@@ -558,7 +437,7 @@ FAF = {
                 if (((FAF.sID == 0)) && ((typeof FAF.tID == 'undefined') || (FAF.tID == null) || (FAF.tID == 0))) {
                     $('#fundraisingThermometer, h2.totalRaised, .nonprofitName').hide();
                 }
-                if ((typeof FAF.sID == 'undefined') || (FAF.sID == null)) {
+                if (typeof FAF.sID == 'undefined' || FAF.sID == null) {
                     $('#facebookComments, #socialSharingWrap').hide();
                     $('table.FAFOuterTable2').before('<div id="wrapAlertBar"><div id="alertBar">Your Personal Page Preview - <a href="' + FAF.root + '/faf/login/page_edit.asp?login=lmenu&ievent=' + FAF.eID + '">[EDIT]</a></div></div>');
                 }
@@ -639,7 +518,7 @@ FAF = {
 									if (honoritem.namefrom.indexOf('From')>-1 && honoritem.nameto.indexOf('From')>-1) {
 										num = num+1;
 										html += '<li class="honorItem pledgeItem"><div class="gutter">'
-											+ '<span class="honorAmount">$'+honoritem.amount+'</span>'
+											+ '<span class="honorAmount">'+FAF.Options.currency+''+honoritem.amount+'</span>'
 											+ '<span class="honorNameFrom">'+honoritem.nameto+'</span><br />'
 											+ '<span class="honorNameTo"></span>'
 											+ '</div></li>';
@@ -647,7 +526,7 @@ FAF = {
 									if (honoritem.scrolltypeid == 1) {
 										num = num+1;
 										html += '<li class="honorItem"><div class="gutter">'
-											+ '<span class="honorAmount">$'+honoritem.amount+'</span>'
+											+ '<span class="honorAmount">'+FAF.Options.currency+''+honoritem.amount+'</span>'
 											+ '<span class="honorNameFrom">'+honoritem.namefrom+'</span><br />'
 											+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
 											+ '</div></li>';
@@ -682,21 +561,23 @@ FAF = {
                                 }
                                 // hide if there are no donations, hide honorRoll and totalDonors
                                 else if (num <= 0) {
-                                    hideHonorRoll()
+                                    hideHonorRoll();
                                 }
                             } else {
-                                hideHonorRoll()
+                                hideHonorRoll();
                             }
                         },
                         error: function(xhr, textStatus, errorThrown) {
-                            hideHonorRoll()
+                            hideHonorRoll();
                         }
                     });
-                } else { hideHonorRoll() }
+                } else {
+                	hideHonorRoll();
+                }
             }
         },
 
-        rewriteTeamPage: function() {
+        teamPage: function() {
             $(document).ready(function() {
                 if ((FAF.thisURL.indexOf("search/searchteampart.asp") > -1)
 					&& !($.browser.msie && $.browser.version.substr(0, 1) < 7)) {
@@ -758,7 +639,7 @@ FAF = {
 
                     // Like
                     if (fafJSONoptions.facebook.hideLikeButton != "true") {
-                        ppHtml += '<div class="fb-like" data-href="' + location.href + '" data-send="true" data-width="450" data-show-faces="false"></div>';
+                        ppHtml += '<!-- FACEBOOK LIKE --><div id="facebookLikeBox"></div>';
                     }
 
                     // Personal Image/Video
@@ -1122,6 +1003,63 @@ FAF = {
             });
         },
 
+
+		/* 
+		 =============
+		  FAF WIDGETS
+		 =============
+		*/
+
+		logo: function() {
+			var img = $(".eventLogo img").css('visibility','hidden');
+			var counter = 0;
+			var imgWidth;
+			var imgHeight;
+			function checkDimensions() {
+				counter++
+				if (counter > 1000) {
+					img.css('visibility','visible');
+					return false;
+				} else {
+					setTimeout(function() {
+						imgWidth 	= img.width();
+						imgHeight 	= img.height();
+						if (imgWidth < 20 || imgHeight < 20) {
+							checkDimensions();
+						} else {
+							applyDimensions();
+						}
+					},10);
+				}
+			}
+			checkDimensions();
+			
+			function applyDimensions() {
+				if (imgWidth > imgHeight) {
+					img.addClass('forceWidth');
+				} else {
+					img.addClass('forceHeight');
+				}
+				img.css('visibility','visible');
+			}
+		},
+
+		miniLogin: function() {
+			// Add events to mini login form
+            $("#loginLink").click(function(){
+				if ($("#loginForm").is(":hidden")){
+					$("#loginForm").slideDown("normal");
+					$('a#loginLink span').text('Close');
+					$(this).addClass('loginLinkClose');
+				} else {
+					$("#loginForm").slideUp("normal");
+					$('a#loginLink span').text('Sign In');
+					$(this).removeClass('loginLinkClose');
+				}
+				return false;
+			});
+		},
+
         therm: function(amount) {
             setTimeout(function() {
 
@@ -1181,21 +1119,265 @@ FAF = {
             }, 3000);
 
         },
+        
+        headquartersMenu: function() {
+        	
+        	// Rewrite MyHQ menu
+            if (($('.highlighttitlemenu').length || $('.highlighttitlemenugame').length) && !$('#myHQmenu').length) {
+                var menuHtml = '<ul id="myHQmenu" class="clearfix">';
+                $('#myHQnav table:first td').each(function() {
+                    var thisClass = '';
+                    var text = $.trim($(this).text().replace('KnowledgeGame', 'Knowledge Game'));
+                    var link = ($(this).find('a').length) ? $(this).find('a').attr('href') : "#";
+                    var styles = (typeof $(this).attr('bgcolor') != "undefined") ? 'background-color:' + $(this).attr('bgcolor') + ';' : '';
+                    if ($(this).hasClass('highlighttitlemenu')) {
+                        thisClass = ' class="highlighttitlemenu"';
+                    } else {
+                        thisClass = ' class="subnav"';
+                    }
+                    if (text != "" && text != "&nbsp;") {
+                        menuHtml += '<li' + thisClass + '><a href="' + link + '" style="' + styles + '">' + text + '</a></li>';
+                    }
+                });
+                menuHtml += '</ul>';
+                $('#myHQnav').after(menuHtml);
+                $('#myHQmenu li:last').addClass('logout');
 
-        formatCurrencyWSymbol: function(num, symbol) {
-            symbol = symbol || FAF.Options.currency;
-            num = num.toString().replace(/\$|\,/g, '');
-            if (isNaN(num)) num = "0";
-            sign = (num == (num = Math.abs(num)));
-            num = Math.floor(num * 100 + 0.50000000001);
-            cents = num % 100;
-            num = Math.floor(num / 100).toString();
-            if (cents < 10) cents = "0" + cents;
-            for (var i = 0; i < Math.floor((num.length - (1 + i)) / 3); i++)
-                num = num.substring(0, num.length - (4 * i + 3)) + ',' + num.substring(num.length - (4 * i + 3));
-            return (((sign) ? '' : '-') + symbol + num);
+                // Rewrite submenu
+                menuHtml = '<ul id="myHQsubmenu" class="menuSub clearfix">';
+                $('#myHQnav table:last a').each(function() {
+                    text = $.trim($(this).text());
+                    link = $(this).attr('href');
+                    var target = (text.match('View')) ? ' target="_blank"' : '';
+                    menuHtml += '<li><a href="' + link + '"' + target + '>' + text + '</a></li>';
+                });
+                menuHtml += '</ul>';
+                $('#myHQmenu').after(menuHtml);
+                $('#myHQsubmenu li:last').addClass('logout');
+            }
+        	
+        },
+        
+        sponsorScroller: function() {
+        	// Sponsor Scroller
+			if (typeof sponsorSeries != "undefined" && location.href.indexOf('/faf/home/default.asp')>-1) {
+			
+				var sponsorHtml = '<div id="sponsorScroll"><h6 class="sidebarTitle sponsorTitle">Special Thanks To:</h6><div class="sponsorBox"></div></div>';
+				$('#contentTertiary .sponsorScroll').before(sponsorHtml);
+			
+				for (var i=0;i<sponsorSeries.length;i++) {
+					$('<div class="slide"><a href="'+sponsorRealUrl[i]+'"><img src="/AccountTempFiles'+sponsorSeries[i]+'" alt="'+sponsorCompanyName[i]+'" /></a></div>').appendTo('#sponsorScroll .sponsorBox');
+				}
+				
+				setTimeout(function() {
+					$('.sponsorBox img').each(function() {
+						var containerWidth = $('#contentTertiary .slide:eq(0)').width();
+						var containerHeight = $('#contentTertiary .slide:eq(0)').height();
+						var imageWidth = $(this).width();
+						var imageHeight = $(this).height();
+						if (imageWidth > imageHeight) { 
+							$(this).addClass('forceWidth'); 
+						} else if (imageWidth < imageHeight) {
+							$(this).addClass('forceHeight');
+						} else {
+							$(this).addClass('forceWidth');
+						}
+					});
+					$('.sponsorBox .slide').css('visibility','visible');
+					$('.sponsorBox').cycle();
+				},2000);
+			}
         },
 
+
+		/* 
+		 ====================
+		  SOCIAL MEDIA TOOLS
+		 ====================
+		*/
+
+		initFacebook: function() {
+			if (typeof fafJSONoptions.facebook != "undefined") {
+				var f = fafJSONoptions.facebook;
+				var appID = (typeof f.appId != "undefined" && f.appId != "") ? f.appId : FAF.Options.facebook.appId;
+				var facebookHtml = ' \
+					<div id="fb-root"></div> \
+					<script>(function(d, s, id) { \
+					  var js, fjs = d.getElementsByTagName(s)[0]; \
+					  if (d.getElementById(id)) return; \
+					  js = d.createElement(s); js.id = id; \
+					  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1"; \
+					  fjs.parentNode.insertBefore(js, fjs); \
+					}(document, \'script\', \'facebook-jssdk\'));</script>';
+				$('body').prepend(facebookHtml);
+			}
+        },
+        
+        facebook: function() {
+			if (typeof fafJSONoptions.facebook != "undefined") {
+
+				var f = fafJSONoptions.facebook,
+					url = '',
+					title = '',
+					name = '';
+					
+
+				if (f.hideAll == "false") {
+
+					// create a URL Facebook can archive, strip the session variables...
+					var firstPart = location.href.split('/faf')[0];
+					if (location.href.indexOf('/faf/donorReg/donorPledge.asp')>-1) { // personal page
+						url = encodeURIComponent(firstPart + '/faf/donorReg/donorPledge.asp?ievent=' + FAF.eID + '&supId=' + FAF.sID);
+					} else if (location.href.indexOf('/faf/search/searchTeamPart.asp')>-1) { // team page
+						url = encodeURIComponent(firstPart + '/faf/search/searchTeamPart.asp?ievent=' + FAF.eID + '&team=' + FAF.tID);
+					} else {
+						url = encodeURIComponent(location.href);
+					}
+
+					// Team page:
+					if (typeof fafJSONteam != 'undefined') {
+						title = 'Leave an encouraging note for';
+						name = fafJSONteam.name;
+						title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
+					}
+
+					// Personal page:
+					if (typeof fafJSONparticipant != 'undefined') {
+						title = 'Leave an encouraging note for';
+						name = fafJSONparticipant.name;
+						title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
+					}
+
+					// Load Facebook like button and comments
+					if (f.hideLikeBox == "true") {
+						$('#facebookLikeBox').hide();
+					} else {
+						$('#facebookLikeBox').append('<div class="fb-like" data-href="'+url+'" data-send="true" data-width="490" data-show-faces="false"></div>');
+					}
+					
+					if (f.hideComments == "true") {
+						$('#facebookComments').hide();
+					} else {
+						$('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="490"></div>');
+					}
+
+					// Home Page
+					if (location.href.indexOf('faf/home/default.asp') > -1 && f.hideNewsFeed == "false") {
+						var facebookTitle = (typeof f.feedTitle != "undefined" && f.feedTitle != "") ? f.feedTitle : FAF.Options.facebook.feedTitle;
+						facebookTitle = (typeof f.link != "undefined" && f.link != "") ? '<a href="' + f.link + '">' + facebookTitle + '</a>' : facebookTitle;
+						var appID = (typeof f.appId != "undefined" && f.appId != "") ? f.appId : FAF.Options.facebook.appId;
+						var feedHtml = '<div id="facebookFeed"><h5>' + facebookTitle + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="490"></div>';
+						$('#contentPrimary .gutter').append(feedHtml);
+					}
+				}
+			}
+        },
+
+        shareThis: function() {
+			if (typeof fafJSONoptions.sharePage != "undefined") {
+				if (fafJSONoptions.sharePage.hideAll == "false") {
+
+					var s = fafJSONoptions.sharePage;
+					if (s.appId == "" || typeof s.appId == "undefined") {
+						s.appId = FAF.Options.sharePage.appId;
+					}
+
+					var title = (s.title == "" || typeof s.title == "undefined") ? FAF.Options.sharePage.title : s.title;
+					var servicesHtml = "";
+					var services = (s.services != "" && typeof s.services != "undefined") ? s.services.split(',') : FAF.Options.sharePage.services.split(',');
+					$.each(services, function(i, service) {
+						// facebook, twitter, email, sharethis
+						servicesHtml += '<span class="st_' + $.trim(service) + '_large"></span>';
+					});
+					servicesHtml += '<span class="st_sharethis_large"></span>';
+
+					// Run ShareThis.com scripts (except on donation billing pages)
+					if ((FAF.thisURL.indexOf("donorreg/donorbilling.asp") === -1) && (FAF.thisURL.indexOf("donorreg/donorrecognition.asp") === -1) && (FAF.thisURL.indexOf("donorreg/donorconfirmation.asp") === -1) && (FAF.thisURL.indexOf("registerteam.asp") === -1) && (FAF.thisURL.indexOf("register.asp") === -1) && (FAF.thisURL.indexOf('faf/login/') == -1) && FAF.thisURL.indexOf('faf/r/review.asp?') == -1 && FAF.thisURL.indexOf('faf/r/confirmation.asp') == -1 && FAF.thisURL.indexOf('faf/volunteerregnew/volunteerselection.asp') == -1) {
+						$('head').append('<scr' + 'ipt type="text/javascript">var switchTo5x=true</scr' + 'ipt>');
+						$('head').append('<scr' + 'ipt type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></scr' + 'ipt>');
+						if (typeof stLight !== 'undefined') {
+							$('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
+						} else {
+							setTimeout(function() {
+								if (typeof stLight !== 'undefined') {
+									$('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
+								} else {
+									setTimeout(function() {
+										$('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
+									}, 2000);
+								}
+							}, 2000);
+						}
+						// Default ShareThis HTML (if none specified):
+						if (!$('#shareThisIcons').length) {
+							var shareThisHtml = '<div id="shareThis"><h6 class="sidebarTitle shareThisTitle">' + title + '</h6><div id="shareThisIcons" class="clearfix">' + servicesHtml + '</div></div>';
+							if (FAF.thisURL.indexOf('donorpledge.asp') > -1) {
+								$('#contentTertiary .gutter').append(shareThisHtml);
+							} else {
+								$(shareThisHtml).insertAfter($('#contentTertiary div[align="right"]'));
+							}
+						}
+					}
+					// Add logo as Open Graph meta image (except if it already exists - personal/team pages)
+					if (!$('meta[property="og:image"]').length) {
+						if ($('#header #logo img').length > 0) {
+							var ogImageSrc = $('#header #logo img').attr('src');
+							if (ogImageSrc.indexOf("http") != -1) {
+								$('head').append('<meta property="og:image" content="' + ogImageSrc + '"/>')
+							} else {
+								$('head').append('<meta property="og:image" content="' + FAF.root + '/' + ogImageSrc.replace('..', 'faf') + '"/>')
+							}
+						}
+					}
+				}
+			}
+        },
+
+        twitter: function() {
+			if (typeof fafJSONoptions.twitter != "undefined") {
+				var o = fafJSONoptions.twitter;
+				if (o.hideAll == "false" && typeof o.appId !== 'undefined' && o.appId != null && o.appId != "") {
+					// Show only on the home page:
+					if (location.href.indexOf("home/default.asp") > -1) {
+						var twitterTitleHtml = (typeof o.title != 'undefined' && o.title != null && o.title != "") ? o.title : FAF.Options.twitter.title;
+						var appID = (typeof o.appId != "undefined" && o.appId != "") ? o.appId : FAF.Options.twitter.appId;
+						var twitterLink = (typeof o.link != 'undefined' && o.link != null && o.link != "") ? o.link : 'http://www.twitter.com/' + appID + '';
+						var count = (typeof o.count != "undefined" && o.count != "") ? o.count : FAF.Options.twitter.count;
+						$('#contentTertiary .gutter').append('<div id="rightColumnBottom"><h6 class="twitterFeedTitle sidebarTitle"><a href="' + twitterLink + '">' + twitterTitleHtml + '</a></h6><div id="twitterFeed"></div></div>')
+						$('#twitterFeed').jTweetsAnywhere({ username: o.appId, count: count });
+					}
+				}
+			}
+        },
+
+        youTube: function() {
+			if (typeof fafJSONoptions.youTube != "undefined") {
+				var y = fafJSONoptions.youTube;
+				if (typeof y.embedCode != "undefined" && y.embedCode != "" && location.href.indexOf("home/default.asp") > -1) {
+					var title = (typeof y.title != "undefined" && y.title != "") ? y.title : FAF.Options.youTube.title;
+					title = (typeof y.link != "undefined" && y.link != "") ? '<a href="' + y.link + '">' + title + '</a>' : title;
+					var embedCode = (typeof y.embedCode != "undefined" && y.embedCode != "") ? y.embedCode : '';
+					var youtubeHtml = '<div id="youtubeVideo"><h5>' + title + '</h5>' + embedCode + '</div>';
+					$('#contentPrimary .gutter').append(youtubeHtml);
+				}
+			}
+        },
+        
+        
+        /* 
+		 =================
+		  GENERAL METHODS
+		 =================
+		*/
+        
+        getUrlVars: function() {
+            var vars = {};
+            var parts = window.location.href.toLowerCase().replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
+                vars[key] = unescape(value.replace(/\+/g, " "));
+            });
+            return vars;
+        },
+        
         dynamicLinks: function() {
             $(document).ready(function() {
                 // Dynamic Links - Just add the class specified below to any <a> link
@@ -1233,157 +1415,19 @@ FAF = {
                 }
             });
         },
-
-        facebook: function() {
-            $(document).ready(function() {
-                if (typeof fafJSONoptions.facebook != "undefined") {
-
-                    var f = fafJSONoptions.facebook;
-
-                    if (f.hideAll == "false") {
-
-						// create a URL Facebook can archive, strip the session variables...
-						var url = '';
-						var firstPart = location.href.split('/faf')[0];
-						if (location.href.indexOf('/faf/donorReg/donorPledge.asp')>-1) { // personal page
-							url = encodeURIComponent(firstPart + '/faf/donorReg/donorPledge.asp?ievent=' + FAF.eID + '&supId=' + FAF.sID);
-						} else if (location.href.indexOf('/faf/search/searchTeamPart.asp')>-1) { // team page
-							url = encodeURIComponent(firstPart + '/faf/search/searchTeamPart.asp?ievent=' + FAF.eID + '&team=' + FAF.tID);
-						} else {
-							url = encodeURIComponent(location.href);
-						}
-
-                        // Team page title:
-                        if (typeof fafJSONteam != 'undefined') {
-                            var title = 'Leave an encouraging note for';
-                            var name = fafJSONteam.name;
-                            title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
-                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="470"></div>');
-                        }
-
-                        // Personal page title:
-                        if (typeof fafJSONparticipant != 'undefined') {
-                            var title = 'Leave an encouraging note for';
-                            var name = fafJSONparticipant.name;
-                            title = (f.commentsTitle != "" && typeof f.commentsTitle != "undefined") ? f.commentsTitle : title + ' <span id="fundraiser">' + name + '</span>';
-                            $('#facebookComments').append('<h5>' + title + '</h5><div class="fb-comments" data-href="' + url + '" data-num-posts="2" data-width="470"></div>');
-                        }
-
-                        // Load Facebook like button and comments
-                        if (f.hideLikeBox == "true") {
-                            $('.fb-like').hide();
-                        }
-                        if (f.hideComments == "true") {
-                            $('#facebookComments').hide();
-                        }
-
-                        // Home Page
-                        if (location.href.indexOf('faf/home/default.asp') > -1 && f.hideNewsFeed == "false") {
-                            var facebookTitle = (typeof f.feedTitle != "undefined" && f.feedTitle != "") ? f.feedTitle : FAF.Options.facebook.feedTitle;
-                            facebookTitle = (typeof f.link != "undefined" && f.link != "") ? '<a href="' + f.link + '">' + facebookTitle + '</a>' : facebookTitle;
-                            var appID = (typeof f.appId != "undefined" && f.appId != "") ? f.appId : FAF.Options.facebook.appId;
-                            var feedHtml = '<div id="facebookFeed"><h5>' + facebookTitle + '</h5><div class="fb-live-stream" data-event-app-id="' + appID + '" data-width="450" data-height="250" data-always-post-to-friends="true"></div></div>';
-                            $('#contentPrimary .gutter').append(feedHtml);
-                        }
-                    }
-                }
-            });
-        },
-
-        shareThis: function() {
-            $(document).ready(function() {
-                if (typeof fafJSONoptions.sharePage != "undefined") {
-                    if (fafJSONoptions.sharePage.hideAll == "false") {
-
-                        var s = fafJSONoptions.sharePage;
-                        if (s.appId == "" || typeof s.appId == "undefined") {
-                            s.appId = FAF.Options.sharePage.appId;
-                        }
-
-                        var title = (s.title == "" || typeof s.title == "undefined") ? FAF.Options.sharePage.title : s.title;
-                        var servicesHtml = "";
-                        var services = (s.services != "" && typeof s.services != "undefined") ? s.services.split(',') : FAF.Options.sharePage.services.split(',');
-                        $.each(services, function(i, service) {
-                            // facebook, twitter, email, sharethis
-                            servicesHtml += '<span class="st_' + $.trim(service) + '_large"></span>';
-                        });
-                        servicesHtml += '<span class="st_sharethis_large"></span>';
-
-                        // Run ShareThis.com scripts (except on donation billing pages)
-                        if ((FAF.thisURL.indexOf("donorreg/donorbilling.asp") === -1) && (FAF.thisURL.indexOf("donorreg/donorrecognition.asp") === -1) && (FAF.thisURL.indexOf("donorreg/donorconfirmation.asp") === -1) && (FAF.thisURL.indexOf("registerteam.asp") === -1) && (FAF.thisURL.indexOf("register.asp") === -1) && (FAF.thisURL.indexOf('faf/login/') == -1) && FAF.thisURL.indexOf('faf/r/review.asp?') == -1 && FAF.thisURL.indexOf('faf/r/confirmation.asp') == -1 && FAF.thisURL.indexOf('faf/volunteerregnew/volunteerselection.asp') == -1) {
-                            $('head').append('<scr' + 'ipt type="text/javascript">var switchTo5x=true</scr' + 'ipt>');
-                            $('head').append('<scr' + 'ipt type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></scr' + 'ipt>');
-                            if (typeof stLight !== 'undefined') {
-                                $('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
-                            } else {
-                                setTimeout(function() {
-                                    if (typeof stLight !== 'undefined') {
-                                        $('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
-                                    } else {
-                                        setTimeout(function() {
-                                            $('head').append('<scr' + 'ipt type="text/javascript">stLight.options({publisher: "' + s.appId + '"});</scr' + 'ipt>');
-                                        }, 2000);
-                                    }
-                                }, 2000);
-                            }
-                            // Default ShareThis HTML (if none specified):
-                            if (!$('#shareThisIcons').length) {
-                                var shareThisHtml = '<div id="shareThis"><h6 class="sidebarTitle shareThisTitle">' + title + '</h6><div id="shareThisIcons" class="clearfix">' + servicesHtml + '</div></div>';
-                                if (FAF.thisURL.indexOf('donorpledge.asp') > -1) {
-                                    $('#contentTertiary .gutter').append(shareThisHtml);
-                                } else {
-                                    $(shareThisHtml).insertAfter($('#contentTertiary div[align="right"]'));
-                                }
-                            }
-                        }
-                        // Add logo as Open Graph meta image (except if it already exists - personal/team pages)
-                        if (!$('meta[property="og:image"]').length) {
-                            if ($('#header #logo img').length > 0) {
-                                var ogImageSrc = $('#header #logo img').attr('src');
-                                if (ogImageSrc.indexOf("http") != -1) {
-                                    $('head').append('<meta property="og:image" content="' + ogImageSrc + '"/>')
-                                } else {
-                                    $('head').append('<meta property="og:image" content="' + FAF.root + '/' + ogImageSrc.replace('..', 'faf') + '"/>')
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        },
-
-        twitter: function() {
-            $(document).ready(function() {
-                if (typeof fafJSONoptions.twitter != "undefined") {
-                    var o = fafJSONoptions.twitter;
-                    if (o.hideAll == "false" && typeof o.appId !== 'undefined' && o.appId != null && o.appId != "") {
-                        // Show only on the home page:
-                        if (location.href.indexOf("home/default.asp") > -1) {
-                            var twitterTitleHtml = (typeof o.title != 'undefined' && o.title != null && o.title != "") ? o.title : FAF.Options.twitter.title;
-                            var appID = (typeof o.appId != "undefined" && o.appId != "") ? o.appId : FAF.Options.twitter.appId;
-                            var twitterLink = (typeof o.link != 'undefined' && o.link != null && o.link != "") ? o.link : 'http://www.twitter.com/' + appID + '';
-                            var count = (typeof o.count != "undefined" && o.count != "") ? o.count : FAF.Options.twitter.count;
-                            $('#contentTertiary .gutter').append('<div id="rightColumnBottom"><h6 class="twitterFeedTitle sidebarTitle"><a href="' + twitterLink + '">' + twitterTitleHtml + '</a></h6><div id="twitterFeed"></div></div>')
-                            $('#twitterFeed').jTweetsAnywhere({ username: o.appId, count: count });
-                        }
-                    }
-                }
-            });
-        },
-
-        youTube: function() {
-            $(document).ready(function() {
-                if (typeof fafJSONoptions.youTube != "undefined") {
-                    var y = fafJSONoptions.youTube;
-                    if (typeof y.embedCode != "undefined" && y.embedCode != "" && location.href.indexOf("home/default.asp") > -1) {
-                        var title = (typeof y.title != "undefined" && y.title != "") ? y.title : FAF.Options.youTube.title;
-                        title = (typeof y.link != "undefined" && y.link != "") ? '<a href="' + y.link + '">' + title + '</a>' : title;
-                        var embedCode = (typeof y.embedCode != "undefined" && y.embedCode != "") ? y.embedCode : '';
-                        var youtubeHtml = '<div id="youtubeVideo"><h5>' + title + '</h5>' + embedCode + '</div>';
-                        $('#contentPrimary .gutter').append(youtubeHtml);
-                    }
-                }
-            });
+        
+        formatCurrencyWSymbol: function(num, symbol) {
+            symbol = symbol || FAF.Options.currency;
+            num = num.toString().replace(/\$|\,/g, '');
+            if (isNaN(num)) num = "0";
+            sign = (num == (num = Math.abs(num)));
+            num = Math.floor(num * 100 + 0.50000000001);
+            cents = num % 100;
+            num = Math.floor(num / 100).toString();
+            if (cents < 10) cents = "0" + cents;
+            for (var i = 0; i < Math.floor((num.length - (1 + i)) / 3); i++)
+                num = num.substring(0, num.length - (4 * i + 3)) + ',' + num.substring(num.length - (4 * i + 3));
+            return (((sign) ? '' : '-') + symbol + num);
         },
 
         showContent: function() {
@@ -1398,11 +1442,15 @@ FAF.go = function(callback) {
     var m = FAF.Methods;
     m.initialize(function() {
         $(document).ready(function() {
-        	m.initMiniLogin();
+        	m.initFacebook();
+        	m.miniLogin();
             m.checkLogin();
             m.cleanup();
-            m.rewritePersonalPage();
-            m.rewriteTeamPage();
+            m.logo();
+            m.sponsorScroller();
+            m.headquartersMenu();
+            m.personalPage();
+            m.teamPage();
             m.youTube();
             m.facebook();
             m.shareThis();
@@ -1412,8 +1460,7 @@ FAF.go = function(callback) {
             if (callback) callback();
         });
     });
-};
-FAF.go();
+}();
 
 function testTherm(amount) {
     FAF.Methods.therm(amount);
