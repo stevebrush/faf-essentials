@@ -22,15 +22,16 @@
  				Added new function logo() to enclose the existing logo dimensions code [SB]
  				Updated Homepage Facebook Newsfeed plugin to be Comments plugin instead
  				General cleanup of functions; removed document.ready where it was unneccessary or duplicated
- 				
+11/30/2012 	    Added condifitonal for obtaining an event id alternative when one isn't present in the URL to resolve issues presented in CQ# 175542.
+
 ====================================================================
 */
 
 FAF = {
 
     Config: {
-        version: '3.1.0',
-        lastRevised: '11/02/2012',
+        version: '3.1.1',
+        lastRevised: '11/30/2012',
         packageType: "essentials"
     },
 
