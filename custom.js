@@ -110,7 +110,7 @@ FAF = {
 
         initialize: function(callback) {
             FAF.Options = $.extend(FAF.Defaults, FAF.Options);
-            FAF.eID = this.getUrlVars()['ievent'];
+            FAF.eID = (typeof fafJSONevent != "undefined") ? fafJSONevent.event.id : this.getUrlVars()['ievent'];
             FAF.sID = this.getUrlVars()['supid'];
             FAF.tID = this.getUrlVars()['team'];
             FAF.protocol = window.location.protocol;
