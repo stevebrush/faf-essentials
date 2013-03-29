@@ -22,25 +22,26 @@
  				Added new function logo() to enclose the existing logo dimensions code [SB]
  				Updated Homepage Facebook Newsfeed plugin to be Comments plugin instead
  				General cleanup of functions; removed document.ready where it was unneccessary or duplicated
-11/30/2012 	    Added condifitonal for obtaining an event id alternative when one isn't present in the URL to resolve issues presented in CQ# 175542.
-
+ 				
+ 12/19/2012		Updated therm() function to use smoother jQuery animations [SB]
+ 				Added commas to goal amount [SB]
+ 				
+ 1/10/2013		Removed honor roll functionality from personalPage() and teamPage() functions;
+ 				Created new honorRoll() function to handle all honor rolls (general, personal, team);
+ 				Updated text/labels for general donations only [SB]
+ 				
 ====================================================================
 */
 
 FAF = {
 
     Config: {
-        version: '3.1.1',
-        lastRevised: '11/30/2012',
+        version: '3.1.0',
+        lastRevised: '11/02/2012',
         packageType: "essentials"
     },
 
     Defaults: {
-        tools: {
-            buttonControl: true,
-            logoControl: true,
-            colorControl: true
-        },
         currency: '$',
         eventName: null,
         facebook: {
@@ -126,7 +127,7 @@ FAF = {
 
         fetchJSON: function(callback) {
             $.ajax({
-                url: '/faf/json/event.asp?ievent=' + FAF.eID,
+				url: '/faf/json/event.asp?ievent=' + FAF.eID,
                 dataType: 'jsonp',
                 crossDomain: true,
                 success: function(data) {
@@ -211,13 +212,11 @@ FAF = {
 
             if (FAF.thisURL.indexOf('donorpledge.asp') > -1) {
 
-                var ppContainer = $('#contentPrimary .gutter');
-                var ppHtml = "";
-
-                var ppBodyTable = $('.FAFBodyTable').html(),
+                var ppContainer = $('#contentPrimary').find('.gutter'),
+                	ppHtml = "",
+                	ppBodyTable = ppContainer.find('.FAFBodyTable').html(),
 					br = new RegExp("\\<(br|BR)+\\>", "g"),
 					regamount = new RegExp("\\(\\$.+\\+\\)"),
-					ppNonprofitName,
 					ppDonorform,
 					ppDonateLevels = '';
 
@@ -234,19 +233,21 @@ FAF = {
                     amt: 'Amount:',
                     honorroll: 'Honor Roll',
                     givebtn: 'Give Now',
-                    givebtnGen: 'Giving Stats',
-                    goalachieved: 'Goal Achieved!',
-                    goalsurpassed: 'Goal Surpassed!',
-                    printalt: 'If you are unable to donate online, please print out a donation form.'
                 };
 
                 var p = jQuery.extend({}, fafJSONparticipant);
                 var e = fafJSONevent;
-                p.appealExtras = fafJSONevent.personalpage.pageextras;
-                p.CustomLinkName = fafJSONevent.personalpage.customlinkname;
-                p.CustomLinkUrl = fafJSONevent.personalpage.customlinkurl;
-                p.PrintName = fafJSONevent.labels.printabledonation;
-                p.PrintUrl = fafJSONevent.labels.printabledonationurl;
+                
+                // general donation
+                if (p.sid == "0") {
+                	txt.goal = "Goal Amount";
+                }
+                
+                p.appealExtras 		= fafJSONevent.personalpage.pageextras;
+                p.CustomLinkName 	= fafJSONevent.personalpage.customlinkname;
+                p.CustomLinkUrl 	= fafJSONevent.personalpage.customlinkurl;
+                p.PrintName 		= fafJSONevent.labels.printabledonation;
+                p.PrintUrl 			= fafJSONevent.labels.printabledonationurl;
 
                 // Add ID to container
                 $('.container').attr('id', 'personalPage');
@@ -259,14 +260,14 @@ FAF = {
 
                 // Like
                 if (fafJSONoptions.facebook.hideLikeButton != "true") {
-                    ppHtml += '<!-- FACEBOOK LIKE --><div id="facebookLikeBox"></div>';
+                    ppHtml += '<div id="facebookLikeBox"></div>';
                 }
 
                 // Personal Image/Video
-                if ((p.image1 !== '') && (p.image2 !== '')) {
+                if (p.image1 !== '' && p.image2 !== '') {
                     ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + p.image1 + '" alt="' + p.name + ' Personal Image" /><span class="personalImageCaption">' + p.caption + '</span></span><span class="personalImage"><img class="imageFrame" src="' + p.image2 + '" alt="' + p.name + ' Personal Image" /></span>';
                 } else if (p.image1 !== '') {
-                    if (p.image1.indexOf('youtube.com') > 0) {
+                    if (p.image1.indexOf('youtube.com') > -1) {
                         ppHtml += ($.browser.msie) ? '<div class="personalVideo"><object width="240" height="150"><param name="movie" value="' + p.image1 + '"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><param name="wmode" value="opaque"></param><embed src="' + p.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></embed></object></div>' : '<span class="personalVideo"><object width="240" height="150"><param name="movie" value="' + p.image1 + '"><param name="allowFullScreen" value="true"><param name="allowscriptaccess" value="always"><param name="wmode" value="opaque"><embed src="' + p.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></object></div>';
                     } else {
                         ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + p.image1 + '" alt="' + p.name + ' Personal Image" /><span class="personalImageCaption">' + p.caption + '</span></span>';
@@ -280,7 +281,7 @@ FAF = {
 
                 // Utility Menu
                 // Team Page Link
-                if ((typeof p.teampagelink != "undefined") && (p.teampagelink !== '')) {
+                if (typeof p.teampagelink != "undefined" && p.teampagelink !== '') {
                     p.utilityHtml += '<li class="teamPageTxt"><a href="' + p.teampagelink + '">' + txt.teamlink + '&nbsp;&#155;</a></li>';
                 }
 
@@ -291,30 +292,20 @@ FAF = {
 
                 // Print Donation Form Link
                 var printTable = $(ppBodyTable).find('table table table table td:contains("If you are unable to donate online")');
-                if (printTable.length > 0) {
-                    if (printTable.find('a').attr('onclick').toString().indexOf('tmpval=y') > 0) {
-                        var printpdf = 'y';
-                    } else { var printpdf = '' }
-                    if (printTable.find('a').attr('onclick').toString().indexOf('&o=L') > 0) {
-                        var printorient = '&o=L';
-                    } else { var printorient = '' }
-
-                    if (printTable.find('a').attr('onclick').toString().indexOf('&tmpTID=0') > 0) {
-                        var printTID = '&tmpTID=0';
-                    } else { var printTID = '' }
-                    if (printTable.find('a').attr('onclick').toString().indexOf('&isPer=y') > 0) {
-                        var printIsPer = '&isPer=y';
-                    } else if (printTable.find('a').attr('onclick').toString().indexOf('&isPer=n') > 0) {
-                        var printIsPer = '&isPer=n';
-                    } else { var printIsPer = '' }
-                    if (printTable.find('a').attr('onclick').toString().indexOf('&isFam=y&famid=') > 0) {
-                        var printFam = '&isFam=y&famid=';
-                        var ipos = printTable.find('a').attr('onclick').toString().indexOf('&isFam=y&famid=');
-                        var iend = printTable.find('a').attr('onclick').toString().substring(ipos).indexOf('\'');
-                        var famid = printTable.find('a').attr('onclick').toString().substring(ipos).substring(0, iend).replace("&isFam=y&famid=", "")
+                var onclick, printpdf, printorient, printTID, printIsPer, printFam = '';
+                if (printTable.length) {
+                	onclick 	= printTable.find('a').attr('onclick').toString();
+                	printpdf 	= (onclick.indexOf('tmpval=y') > -1) ? 'y' : '';
+                    printorient = (onclick.indexOf('&o=L') > -1) ? '&o=L' : '';
+                    printTID	= (onclick.indexOf('&tmpTID=0') > -1) ? '&tmpTID=0' : '';
+					printIsPer	= (onclick.indexOf('&isPer=y') > -1) ? '&isPer=y' : (onclick.indexOf('&isPer=n') > 0) ? '&isPer=n' : '';
+                    if (onclick.indexOf('&isFam=y&famid=') > -1) {
+                        printFam = '&isFam=y&famid=';
+                        var ipos = onclick.indexOf('&isFam=y&famid=');
+                        var iend = onclick.substring(ipos).indexOf('\'');
+                        var famid = onclick.substring(ipos).substring(0, iend).replace("&isFam=y&famid=", "");
                         printFam += famid;
-                    } else { var printFam = '' }
-
+                    }
                     if (p.PrintUrl != '') {
                         if (printpdf == 'y') {
                             p.PrintHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=' + p.sid + '&tmpval=' + printpdf + printorient + '&customlinkForPdf=' + encodeURIComponent(p.PrintUrl) + printTID + printIsPer + printFam + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + p.PrintName + '</a></div>'
@@ -324,8 +315,9 @@ FAF = {
                     } else {
                         p.PrintHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=' + p.sid + '&tmpval=' + printpdf + printorient + printTID + printIsPer + printFam + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + p.PrintName + '</a></div>'
                     }
-
-                } else { p.PrintHtml = '' }
+                } else { 
+                	p.PrintHtml = '';
+                }
 
                 // Facebook comments
                 ppHtml += '<div id="facebookComments"></div>';
@@ -333,45 +325,43 @@ FAF = {
                 // Donation Form		
                 ppDonorform = $(ppBodyTable).find('input[name=level]').closest('table');
                 ppDonorform.find('input[name=level]').closest('tr').each(function() {
+                
                     var input = $(this).find('td:eq(0)').html();
                     var text = $(this).find('td:eq(1)').html();
-                    if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
+                    var textFmt = '';
+                    if (typeof text !== 'undefined' && text !== null && text !== 0) {
                         text = text.replace(br, " ");
                         text = text.match(regamount);
-                        if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
+                        if (typeof text !== 'undefined' && text !== null && text !== 0) {
                             text = text[0].replace("(", "");
                             text = text.replace(" +)", "");
-                            var textFmt = FAF.Methods.formatCurrencyWSymbol(text);
-                        } else { textFmt = ''; }
+                            textFmt = FAF.Methods.formatCurrencyWSymbol(text);
+                        }
                     }
+                    
                     var label;
-                    if ($(this).find('td:eq(1) a').length > 0) {
+                    if ($(this).find('td:eq(1) a').length) {
                         label = $(this).find('td:eq(1) a').html()
-                        if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
+                        if (typeof label !== 'undefined' && label !== null && label !== 0) {
                             label.split(br)[0];
-                        };
+                        }
                     } else {
                         label = $(this).find('td:eq(1) b').html()
-                        if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
+                        if (typeof label !== 'undefined' && label !== null && label !== 0) {
                             label.split(br)[0];
-                        };
+                        }
                     }
                     ppDonateLevels += '<li>' + input + '<label for="transaction"><span class="transtext"><span class="amt">' + textFmt + '</span> ' + label + '</span></label></li>';
                 });
                 ppDonateLevels += '<li><input name="level" type="radio" /><label for="transaction"><span class="transtext">' + txt.otheramt + ' </span><span id="donateAmount"></span></label></li>';
 
                 var ppDonateLevelsAlt = '<li><input name="level" type="radio" /><label for="transaction"><span class="transtext">' + txt.amt + ' </span><span id="donateAmount"></span></label></li>';
-
-                if (($(ppBodyTable).find('input[name=level]').length > 0) && ($(ppBodyTable).find('input[name=level]').val() != 0)) {
-                    var ppDonateLevelsHtml = '<p class="info">' + txt.givinglevels + '</p><div id="givingLevels"><ol class="options">' + ppDonateLevels + '</ol></div>';
-                } else {
-                    var ppDonateLevelsHtml = '<p class="info">' + txt.givingamt + '</p><div id="givingLevels"><ol class="options">' + ppDonateLevelsAlt + '</ol></div>';
-                }
+				var ppDonateLevelsHtml = ($(ppBodyTable).find('input[name=level]').length && $(ppBodyTable).find('input[name=level]').val() != 0) ? '<p class="info">' + txt.givinglevels + '</p><div id="givingLevels"><ol class="options">' + ppDonateLevels + '</ol></div>' : '<p class="info">' + txt.givingamt + '</p><div id="givingLevels"><ol class="options">' + ppDonateLevelsAlt + '</ol></div>';
 
                 // Giving Overlay:
-                ppHtml += '<div id="givingOverlay"><div id="givingOverlayInner" class="clearfix">'
-                ppHtml += '<form name="registrationForm" class="registrationForm" action="" method="POST"><h4>' + txt.donation + '</h4>' + ppDonateLevelsHtml + '<div id="donateButton"></div>' + p.PrintHtml + '</form>'
-                ppHtml += '</div></div>'
+                ppHtml += '<div id="givingOverlay"><div id="givingOverlayInner" class="clearfix">';
+                ppHtml += '<form name="registrationForm" class="registrationForm" action="" method="POST"><h4>' + txt.donation + '</h4>' + ppDonateLevelsHtml + '<div id="donateButton"></div>' + p.PrintHtml + '</form>';
+                ppHtml += '</div></div>';
 
                 // Append all HTML:
                 $(ppHtml).appendTo(ppContainer);
@@ -379,20 +369,21 @@ FAF = {
                 // Additional Modifications:
                 // -------------------------
                 // Remove link around giving level labels
-                $('#givingLevels .options .transtext a b').unwrap();
-                $('#givingLevels .options li label, #givingLevels .options li span.otheramount').click(function() {
+                var givingBox = $('#givingOverlay');
+                givingBox.find('#givingLevels .options .transtext a b').unwrap();
+                givingBox.find('#givingLevels .options li label, #givingLevels .options li span.otheramount').click(function() {
                     $(this).prev('input').click();
                     return false;
                 });
 
                 // Donation form submit button
                 $('form[name=registrationForm]:eq(0)').addClass('oldregform');
-                $('.registrationForm').attr('onSubmit', 'return formCheck()');
-                $('.registrationForm').attr("action", $('form[name=registrationForm]:first').attr('action'));
-                $('.registrationForm ol').after($('.FAFBodyTable input[type=hidden]'));
-                $('#donateAmount').append($('input[name=addAmount]'));
-                $('#donateAmount input[name=addAmount]').attr('onblur', '');
-                $('#donateAmount input[name=addAmount]').keydown(function() {
+                givingBox.find('.registrationForm').attr('onSubmit', 'return formCheck()');
+                givingBox.find('.registrationForm').attr("action", $('form[name=registrationForm]:first').attr('action'));
+                givingBox.find('.registrationForm ol').after($('.FAFBodyTable input[type=hidden]'));
+                givingBox.find('#donateAmount').append($('input[name=addAmount]'));
+                givingBox.find('#donateAmount input[name=addAmount]').attr('onblur', '');
+                givingBox.find('#donateAmount input[name=addAmount]').keydown(function() {
                     $(this).closest('label').prev('input').click();
                 });
 
@@ -401,44 +392,32 @@ FAF = {
                 }, 10);
 
                 // Add the new Donate button image to the donate button		
-                if ($('input[name="donateToSelfCheckbox"]').length > 0) {
-                    $('#donateButton').html($('input[name="donateToSelfCheckbox"]').closest('table').parent().html());
+                if ($('input[name="donateToSelfCheckbox"]').length) {
+                    givingBox.find('#donateButton').html($('input[name="donateToSelfCheckbox"]').closest('table').parent().html());
                 } else {
-                    $('#donateButton').html($('input[name=imageField]').closest('td').html());
+                    givingBox.find('#donateButton').html($('input[name=imageField]').closest('td').html());
                 }
-                $('#donateButton input').removeAttr("width").removeAttr("height");
-                $('#donateButton input[name="imageField"]').hide();
+                givingBox.find('#donateButton input').removeAttr("width").removeAttr("height");
+                givingBox.find('#donateButton input[name="imageField"]').hide();
+                
                 var donateHtml = '<input type="button" border="0" name="imageFieldNew" id="donateSubmit" value="Donate &raquo;">';
-
-                $('#donateButton').append(donateHtml);
-
-                $('#donateSubmit').click(function() {
+                givingBox.find('#donateButton').append(donateHtml);
+                givingBox.find('#donateSubmit').click(function() {
                     if (formCheck() == true) {
                         $('#donateButton input[name="imageField"]').click()
                     }
                 })
-                $('#donateButton br').remove();
+                givingBox.find('#donateButton br').remove();
 
                 //done with old reg form - remove it
                 $('.oldregform').remove();
 
-                // Make the page look different for General Donations
-                if (FAF.sID == 0 && (FAF.tID == null || FAF.tID == '' || FAF.tID == 0)) {
-                    $('#fundraisingThermometer').after('<div id="givingInnerlay" />');
-                    $('#givingInnerlay').append($('#givingOverlayInner'));
-                    $('#giveNowButton').hide();
-                }
-
                 // Set form pointers
-                $('.registrationForm').attr('name', 'registrationForm');
+                givingBox.find('.registrationForm').attr('name', 'registrationForm');
                 window.formPointer = document.registrationForm;
                 window.newFormElement = $('form.registrationForm');
 
-                // Hide and remove elements for the General Donation form if they don't exist or are undefined
-                if (((FAF.sID == 0)) && ((typeof FAF.tID == 'undefined') || (FAF.tID == null) || (FAF.tID == 0))) {
-                    $('#fundraisingThermometer, h2.totalRaised, .nonprofitName').hide();
-                }
-                if (typeof FAF.sID == 'undefined' || FAF.sID == null) {
+				if (typeof FAF.sID == 'undefined' || FAF.sID == null) {
                     $('#facebookComments, #socialSharingWrap').hide();
                     $('table.FAFOuterTable2').before('<div id="wrapAlertBar"><div id="alertBar">Your Personal Page Preview - <a href="' + FAF.root + '/faf/login/page_edit.asp?login=lmenu&ievent=' + FAF.eID + '">[EDIT]</a></div></div>');
                 }
@@ -448,36 +427,36 @@ FAF = {
                 /*  SIDEBAR  */
                 /* --------- */
 
-                var ppSidebar = $('#contentTertiary .gutter');
-
+                var ppSidebar = $('#contentTertiary').find('.gutter');
                 $('<div class="sidebarBox" />').prependTo(ppSidebar);
+                var sidebarBox = ppSidebar.find('div.sidebarBox');
 
                 // Donation Button
-                $('<div class="dataRow clearfix row1"><div id="giveNowButton"><a class="bigButton" href="#givingOverlay">' + txt.givebtn + '</a></div></div>').appendTo('.sidebarBox');
+                $('<div class="dataRow clearfix row1"><div id="giveNowButton"><a class="bigButton" href="#givingOverlay">' + txt.givebtn + '</a></div></div>').appendTo(sidebarBox);
 
                 // Team Page link 2
-                if ((typeof p.teampagelink != "undefined") && (p.teampagelink !== '')) {
+                if (typeof p.teampagelink != "undefined" && p.teampagelink !== '') {
                     p.teampagelinkHtml2 = '<div id="teamPageButton"><a class="teamPageLink smallButton" href="' + p.teampagelink + '">' + txt.teamlinkButton + '</a></div>';
-                    $(p.teampagelinkHtml2).appendTo('.sidebarBox .row1');
+                    $(p.teampagelinkHtml2).appendTo(sidebarBox.find('.row1'));
                 }
 
                 // Fund Goal
-                if ((typeof p.goal !== 'undefined') && (p.goal !== null)) {
+                if (typeof p.goal !== 'undefined' && p.goal !== null) {
                     p.goalFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(p.goal));
                 }
-                if ((typeof p.goalFmt !== 'undefined') && (p.goalFmt !== null)) {
-                    p.goalFmtHtml = '<div class="dataRow clearfix row2"><span class="dataRowLabel">' + txt.goal + '</span><span class="dataRowValue">' + p.goalFmt + '</span></div>'
+                if (typeof p.goalFmt !== 'undefined' && p.goalFmt !== null) {
+                    p.goalFmtHtml = '<div class="dataRow clearfix row2"><span class="dataRowLabel">' + txt.goal + '</span><span class="dataRowValue">' + p.goalFmt + '</span></div>';
                     p.goalFmtNum = p.goalFmt;
-                    $(p.goalFmtHtml).appendTo('.sidebarBox');
+                    $(p.goalFmtHtml).appendTo(sidebarBox);
                 }
 
                 // Total Raised
-                if ((typeof p.raised !== 'undefined') && (p.raised !== null)) {
+                if (typeof p.raised !== 'undefined' && p.raised !== null) {
                     p.raisedFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(p.raised));
                 }
-                if ((typeof p.raisedFmt !== 'undefined') && (p.raisedFmt !== null)) {
-                    p.raisedFmtHtml = '<div class="dataRow clearfix row3"><span class="dataRowLabel">' + txt.raised + '</span><span class="dataRowValue">' + p.raisedFmt + '</span></div>'
-                    $(p.raisedFmtHtml).appendTo('.sidebarBox');
+                if (typeof p.raisedFmt !== 'undefined' && p.raisedFmt !== null) {
+                    p.raisedFmtHtml = '<div class="dataRow clearfix row3"><span class="dataRowLabel">' + txt.raised + '</span><span class="dataRowValue">' + p.raisedFmt + '</span></div>';
+                    $(p.raisedFmtHtml).appendTo(sidebarBox);
                 }
 
                 // Days Left
@@ -486,522 +465,376 @@ FAF = {
                 var daysleft = Math.floor((Date.parse(eventdate) - Date.parse(today)) / 86400000) + 1;
                 if (daysleft > -1) {
                     p.daysLeft = '<div class="dataRow clearfix row4"><span class="dataRowLabel">' + txt.daysleft + '</span><span class="dataRowValue">' + daysleft + '</span></div>';
-                    $(p.daysLeft).appendTo('.sidebarBox');
+                    $(p.daysLeft).appendTo(sidebarBox);
                 }
 
                 var fundraisingTherm = '<div class="dataRow clearfix row5"><span class="dataRowLabel">Progress<span class="dataRowPercentage">0%</span></span><span class="dataRowValue"><div id="bar"><span id="bar_progress"></span></div></div></span>';
-                $(fundraisingTherm).appendTo('.sidebarBox');
+                $(fundraisingTherm).appendTo(sidebarBox);
                 var raisedPercentage = (parseInt(p.raised) >= parseInt(p.goal)) ? 100 : Math.round(parseInt(p.raised) / parseInt(p.goal) * 100);
-                $('.dataRowPercentage').text(raisedPercentage + '%');
+                sidebarBox.find('.dataRowPercentage').text(raisedPercentage + '%');
                 var counterWidth = (parseInt(p.raised) > parseInt(p.goal)) ? '100%' : raisedPercentage + "%";
-                $('#bar_progress').css('width', counterWidth);
+                sidebarBox.find('#bar_progress').css('width', counterWidth);
 
                 // Honor Roll
-                $('<h6 class="sidebarTitle honorRollTitle">' + txt.honorroll + '</h6><div id="honorRollFeed" class="clearfix"><div class="honorRollFeedInner clearfix"></div></div>').appendTo(ppSidebar);
-                function hideHonorRoll() {
-                    $('#eventData .row3').remove();
-                    $('.honorRollTitle, #honorRollFeed').remove();
-                }
-                // Get honor roll to donor count (FAF.sID or fafJSONparticipant.sid)
-                if ((typeof fafJSONparticipant.sid !== 'undefined') && (fafJSONparticipant.sid !== null) && (fafJSONparticipant.sid != 0) && (!FAF.Options.honorRoll.hide) && ($.xml2json)) {
-                    $.ajax({
-                        type: "GET",
-                        cache: false,
-                        url: '/gadgets/data/honorroll.aspx?sid=' + p.sid + '&eid=' + FAF.eID,
-                        dataType: 'html',
-                        success: function(honordata) {
-                            var json = $.xml2json(honordata);
-                            if ($(json.honoritem).length) {
-                                var html = '';
-                                var num = 0;
-                                $(json.honoritem).each(function(index, honoritem) {
-                                    // First check if pledge entry:
-									if (honoritem.namefrom.indexOf('From')>-1 && honoritem.nameto.indexOf('From')>-1) {
-										num = num+1;
-										html += '<li class="honorItem pledgeItem"><div class="gutter">'
-											+ '<span class="honorAmount">'+FAF.Options.currency+''+honoritem.amount+'</span>'
-											+ '<span class="honorNameFrom">'+honoritem.nameto+'</span><br />'
-											+ '<span class="honorNameTo"></span>'
-											+ '</div></li>';
-									} else
-									if (honoritem.scrolltypeid == 1) {
-										num = num+1;
-										html += '<li class="honorItem"><div class="gutter">'
-											+ '<span class="honorAmount">'+FAF.Options.currency+''+honoritem.amount+'</span>'
-											+ '<span class="honorNameFrom">'+honoritem.namefrom+'</span><br />'
-											+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
-											+ '</div></li>';
-									} else
-									if (honoritem.scrolltypeid == 2) {
-										num = num+1;
-										html += '<li class="honorItem"><div class="gutter">'
-											+ '<span class="honorAmount"></span>'
-											+ '<span class="honorNameFrom">'+honoritem.namefrom+'</span><br />'
-											+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
-											+ '</div></li>';
-									}
-                                });
-                                $('#honorRollFeed .honorRollFeedInner').append('<ul class="honorRollList">' + html + '</ul>');
-                                // Remove non breaking space from honor roll from name
-                                $('#honorRollFeed .honorNameFrom').each(function() {
-                                    $(this).html($(this).html().replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' '));
-                                });
-
-                                if (num > FAF.Options.honorRoll.count) {
-                                    $('#honorRollFeed').after('<div id="honorRollControls"><a href="#" id="ticker-previous">Previous</a> / <a href="#" id="ticker-next">Next</a> / <a id="ticker-stop" href="#">Stop</a> / <a id="ticker-start" href="#">Start</a></div>');
-                                    $('#honorRollFeed .honorRollFeedInner').totemticker({
-                                        row_height: '63px',
-                                        next: '#ticker-next',
-                                        previous: '#ticker-previous',
-                                        stop: '#ticker-stop',
-                                        start: '#ticker-start',
-                                        speed: 1200,
-                                        interval: 5000,
-                                        max_items: FAF.Options.honorRoll.count
-                                    });
-                                }
-                                // hide if there are no donations, hide honorRoll and totalDonors
-                                else if (num <= 0) {
-                                    hideHonorRoll();
-                                }
-                            } else {
-                                hideHonorRoll();
-                            }
-                        },
-                        error: function(xhr, textStatus, errorThrown) {
-                            hideHonorRoll();
-                        }
-                    });
-                } else {
-                	hideHonorRoll();
-                }
+                ppSidebar.append('<div id="wrapHonorRoll" style="display:none;"><h6 class="sidebarTitle honorRollTitle">' + txt.honorroll + '</h6><div id="honorRollFeed" class="clearfix"></div></div>');
+                
             }
         },
 
         teamPage: function() {
-            $(document).ready(function() {
-                if ((FAF.thisURL.indexOf("search/searchteampart.asp") > -1)
-					&& !($.browser.msie && $.browser.version.substr(0, 1) < 7)) {
+			if (FAF.thisURL.indexOf("search/searchteampart.asp") > -1 && !($.browser.msie && $.browser.version.substr(0, 1) < 7)) {
 
-                    var ppContainer = $('#contentPrimary .gutter');
-                    var ppHtml = "";
+				var ppContainer = $('#contentPrimary .gutter');
+				var ppHtml = "";
 
-                    /************************************************************
-                    *  Vars
-                    ************************************************************/
+				/************************************************************
+				*  Vars
+				************************************************************/
 
-                    var t = jQuery.extend({}, fafJSONteam);
-                    var e = fafJSONevent;
-                    t.PrintName = fafJSONevent.labels.printabledonation;
-                    t.PrintUrl = fafJSONevent.labels.printabledonationurl;
+				var t = jQuery.extend({}, fafJSONteam);
+				var e = fafJSONevent;
+				t.PrintName = fafJSONevent.labels.printabledonation;
+				t.PrintUrl = fafJSONevent.labels.printabledonationurl;
 
-                    var ppBodyTable = $('.FAFBodyTable').hide().html(),
-						br = new RegExp("\\<(br|BR)+\\>", "g"),
-						regamount = new RegExp("\\(\\$.+\\+\\)"),
-						br1 = new RegExp("\\<(br|BR)+\\>"),
-						ppNonprofitName,
-						ppDonorform,
-						ppDonateLevels = '';
+				var ppBodyTable = $('.FAFBodyTable').hide().html(),
+					br = new RegExp("\\<(br|BR)+\\>", "g"),
+					regamount = new RegExp("\\(\\$.+\\+\\)"),
+					br1 = new RegExp("\\<(br|BR)+\\>"),
+					ppDonorform,
+					ppDonateLevels = '';
 
-                    var txt = {
-                        raised: 'Amount Raised',
-                        goal: 'Fundraising Goal',
-                        daysleft: 'Days Left To Give',
-                        teamlink: 'My ' + e.labels.team + ' Page',
-                        donation: 'Make a Donation',
-                        givinglevels: 'Please select a giving level below:',
-                        givingamt: 'Please enter a donation amount below:',
-                        otheramt: 'Other Amount:',
-                        amt: 'Amount:',
-                        honorroll: 'Honor Roll',
-                        givebtn: 'Give Now',
-                        givebtnGen: '&laquo; Give Now',
-                        goalachieved: 'Goal Achieved!',
-                        goalsurpassed: 'Goal Surpassed!',
-                        recruitmentgoal: 'Recruitement Goal',
-                        teammembers: e.labels.team + ' Members:',
-                        teamlist: e.labels.team + ' Members',
-                        teamlist2: 'Total Raised',
-                        jointeam: 'Join Our ' + e.labels.team
-                    };
+				var txt = {
+					raised: 'Amount Raised',
+					goal: 'Fundraising Goal',
+					daysleft: 'Days Left To Give',
+					teamlink: 'My ' + e.labels.team + ' Page',
+					donation: 'Make a Donation',
+					givinglevels: 'Please select a giving level below:',
+					givingamt: 'Please enter a donation amount below:',
+					otheramt: 'Other Amount:',
+					amt: 'Amount:',
+					honorroll: 'Honor Roll',
+					givebtn: 'Give Now',
+					givebtnGen: '&laquo; Give Now',
+					goalachieved: 'Goal Achieved!',
+					goalsurpassed: 'Goal Surpassed!',
+					recruitmentgoal: 'Recruitement Goal',
+					teammembers: e.labels.team + ' Members:',
+					teamlist: e.labels.team + ' Members',
+					teamlist2: 'Total Raised',
+					jointeam: 'Join Our ' + e.labels.team
+				};
 
-                    /************************************************************
-                    *  Team Page Values
-                    ************************************************************/
+				/************************************************************
+				*  Team Page Values
+				************************************************************/
 
-                    // Add ID to container
-                    $('.container').attr('id', 'personalPage');
+				// Add ID to container
+				$('.container').attr('id', 'personalPage');
 
-                    // Personal Page Title (Heading 1)
-                    ppHtml += '<h1 class="personalPageTitle">' + t.heading1 + '</h1>';
+				// Personal Page Title (Heading 1)
+				ppHtml += '<h1 class="personalPageTitle">' + t.heading1 + '</h1>';
 
-                    // Personal Page SubHeading (Heading 2)
-                    ppHtml += '<h2 id="subHeadingTxt">' + t.heading2 + '</h2>';
+				// Personal Page SubHeading (Heading 2)
+				ppHtml += '<h2 id="subHeadingTxt">' + t.heading2 + '</h2>';
 
-                    // Like
-                    if (fafJSONoptions.facebook.hideLikeButton != "true") {
-                        ppHtml += '<!-- FACEBOOK LIKE --><div id="facebookLikeBox"></div>';
-                    }
+				// Like
+				if (fafJSONoptions.facebook.hideLikeButton != "true") {
+					ppHtml += '<!-- FACEBOOK LIKE --><div id="facebookLikeBox"></div>';
+				}
 
-                    // Personal Image/Video
-                    if ((t.image1 !== '') && (t.image2 !== '') && (t.image2 !== '/AccountTempFiles/')) {
-                        ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + t.image1 + '" alt="' + t.name + ' Personal Image" /><span class="personalImageCaption">' + t.caption + '</span></span><span class="personalImage"><img class="imageFrame" src="' + t.image2 + '" alt="' + t.name + ' Personal Image" /></span>';
-                    } else if (t.image1 !== '') {
-                        if (t.image1.indexOf('youtube.com') > 0) {
-                            if ($.browser.msie) {
-                                ppHtml += '<span class="personalImage"><object width="240" height="150"><param name="movie" value="' + t.image1 + '"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><param name="wmode" value="opaque"></param><embed src="' + t.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></embed></object></span><p id="personalImageCaption">' + t.caption + '</p>';
-                            } else {
-                                ppHtml += '<span class="personalImage"><object width="240" height="150"><param name="movie" value="' + t.image1 + '"><param name="allowFullScreen" value="true"><param name="allowscriptaccess" value="always"><param name="wmode" value="opaque"><embed src="' + t.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></object></span><p id="personalImageCaption">' + t.caption + '</p>';
-                            }
-                        } else {
-                            ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + t.image1 + '" alt="' + t.name + ' Personal Image" /><span class="personalImageCaption">' + t.caption + '</span></span>';
-                        }
-                    }
+				// Personal Image/Video
+				if ((t.image1 !== '') && (t.image2 !== '') && (t.image2 !== '/AccountTempFiles/')) {
+					ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + t.image1 + '" alt="' + t.name + ' Personal Image" /><span class="personalImageCaption">' + t.caption + '</span></span><span class="personalImage"><img class="imageFrame" src="' + t.image2 + '" alt="' + t.name + ' Personal Image" /></span>';
+				} else if (t.image1 !== '') {
+					if (t.image1.indexOf('youtube.com') > 0) {
+						if ($.browser.msie) {
+							ppHtml += '<span class="personalImage"><object width="240" height="150"><param name="movie" value="' + t.image1 + '"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><param name="wmode" value="opaque"></param><embed src="' + t.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></embed></object></span><p id="personalImageCaption">' + t.caption + '</p>';
+						} else {
+							ppHtml += '<span class="personalImage"><object width="240" height="150"><param name="movie" value="' + t.image1 + '"><param name="allowFullScreen" value="true"><param name="allowscriptaccess" value="always"><param name="wmode" value="opaque"><embed src="' + t.image1 + '" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="opaque" width="240" height="150"></object></span><p id="personalImageCaption">' + t.caption + '</p>';
+						}
+					} else {
+						ppHtml += '<span class="personalImage"><img class="imageFrame" src="' + t.image1 + '" alt="' + t.name + ' Personal Image" /><span class="personalImageCaption">' + t.caption + '</span></span>';
+					}
+				}
 
-                    // Appeal Message
-                    ppHtml += '<div class="description">';
-                    ppHtml += '<p class="personalAppeal appealMessage clearfix">' + t.appeal + '</p>';
-                    // Group Page link
-                    if ((typeof t.grouppagelink !== undefined) && (t.grouppagelink !== '')) {
-                        ppHtml += '<p class="groupPageLink"><a href="' + t.grouppagelink + '">Our ' + e.labels.group + ' Page</a></p>';
-                    }
-                    ppHtml += "</div>";
+				// Appeal Message
+				ppHtml += '<div class="description">';
+				ppHtml += '<p class="personalAppeal appealMessage clearfix">' + t.appeal + '</p>';
+				// Group Page link
+				if ((typeof t.grouppagelink !== undefined) && (t.grouppagelink !== '')) {
+					ppHtml += '<p class="groupPageLink"><a href="' + t.grouppagelink + '">Our ' + e.labels.group + ' Page</a></p>';
+				}
+				ppHtml += "</div>";
 
-                    // Team Members Message
-                    if ((typeof t.recruitmentgoal !== 'undefined') && (t.recruitmentgoal !== null) && (t.recruitmentgoal !== 0) && (typeof t.membersrecruited !== 'undefined') && (t.membersrecruited !== null) && (t.membersrecruited !== 0)) {
-                        var recruitmentGoal = (t.recruitmentgoal == "") ? "1" : t.recruitmentgoal;
-                        ppHtml += '<div class="teamMembersMessage">We\'ve recruited <span class="teamMembers">' + t.membersrecruited + '</span> members out of our recruitment goal of <span class="teamGoal">' + recruitmentGoal + '</span> ' + e.labels.team + ' members!</div>';
-                    }
+				// Team Members Message
+				if ((typeof t.recruitmentgoal !== 'undefined') && (t.recruitmentgoal !== null) && (t.recruitmentgoal !== 0) && (typeof t.membersrecruited !== 'undefined') && (t.membersrecruited !== null) && (t.membersrecruited !== 0)) {
+					var recruitmentGoal = (t.recruitmentgoal == "") ? "1" : t.recruitmentgoal;
+					ppHtml += '<div class="teamMembersMessage">We\'ve recruited <span class="teamMembers">' + t.membersrecruited + '</span> members out of our recruitment goal of <span class="teamGoal">' + recruitmentGoal + '</span> ' + e.labels.team + ' members!</div>';
+				}
 
-                    // Team Members Donations...
-                    if ((t.teamdonation !== 'undefined') && (t.teamdonation !== null) && (t.teamdonation !== '')) {
-                        t.teamdonationHtml = '<dl class="clearfix"><dt>' + t.teamdonation.name + '</dt><dd>' + FAF.Methods.formatCurrencyWSymbol(t.teamdonation.raised) + '</dd></dl>'
-                    } else {
-                        t.teamdonationHtml = '';
-                    }
+				// Team Members Donations...
+				if ((t.teamdonation !== 'undefined') && (t.teamdonation !== null) && (t.teamdonation !== '')) {
+					t.teamdonationHtml = '<dl class="clearfix"><dt>' + t.teamdonation.name + '</dt><dd>' + FAF.Methods.formatCurrencyWSymbol(t.teamdonation.raised) + '</dd></dl>'
+				} else {
+					t.teamdonationHtml = '';
+				}
 
-                    // Team Captain
-                    if ((t.teamcaptain !== 'undefined') && (t.teamcaptain !== null) && (t.teamcaptain !== '')) {
-                        t.teamcaptainHtml = '<dl class="clearfix"><dt><a href="' + t.teamcaptain.link + '">' + t.teamcaptain.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(t.teamcaptain.raised) + '</dd></dl>'
-                    } else { t.teamcaptainHtml = '' }
+				// Team Captain
+				if ((t.teamcaptain !== 'undefined') && (t.teamcaptain !== null) && (t.teamcaptain !== '')) {
+					t.teamcaptainHtml = '<dl class="clearfix"><dt><a href="' + t.teamcaptain.link + '">' + t.teamcaptain.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(t.teamcaptain.raised) + '</dd></dl>'
+				} else { t.teamcaptainHtml = '' }
 
-                    // Multiple Team Captains
-                    if (t.teamcocaptains instanceof Array == true) {
-                        t.teamcocaptainHtml = '';
-                        $.each(t.teamcocaptains, function(i, val) {
-                            t.teamcocaptainHtml += '<dl class="clearfix"><dt><a href="' + val.link + '">' + val.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(val.raised) + '</dd></dl>'
-                        })
-                    } else {
-                        t.teamcocaptainHtml = '';
-                    }
+				// Multiple Team Captains
+				if (t.teamcocaptains instanceof Array == true) {
+					t.teamcocaptainHtml = '';
+					$.each(t.teamcocaptains, function(i, val) {
+						t.teamcocaptainHtml += '<dl class="clearfix"><dt><a href="' + val.link + '">' + val.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(val.raised) + '</dd></dl>'
+					})
+				} else {
+					t.teamcocaptainHtml = '';
+				}
 
-                    // Team Members
-                    if (t.teammembers instanceof Array == true) {
-                        t.teammembmersHtml = '';
-                        $.each(t.teammembers, function(i, val) {
-                            t.teammembmersHtml += '<dl class="clearfix"><dt><a href="' + val.link + '">' + val.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(val.raised) + '</dd></dl>'
-                        })
-                    } else {
-                        t.teammembmersHtml = '';
-                    }
-                    ppHtml += '<div id="teamList"><h5><dl class="clearfix"><dt>' + txt.teamlist + '</dt><dd>' + txt.teamlist2 + '</dd></dl></h5><div class="teamDonation">' + t.teamdonationHtml + '</div><div class="captains">' + t.teamcaptainHtml + t.teamcocaptainHtml + '</div><div class="members">' + t.teammembmersHtml + '</div></div>'
+				// Team Members
+				if (t.teammembers instanceof Array == true) {
+					t.teammembmersHtml = '';
+					$.each(t.teammembers, function(i, val) {
+						t.teammembmersHtml += '<dl class="clearfix"><dt><a href="' + val.link + '">' + val.name + '</a></dt><dd>' + FAF.Methods.formatCurrencyWSymbol(val.raised) + '</dd></dl>'
+					})
+				} else {
+					t.teammembmersHtml = '';
+				}
+				ppHtml += '<div id="teamList"><h5><dl class="clearfix"><dt>' + txt.teamlist + '</dt><dd>' + txt.teamlist2 + '</dd></dl></h5><div class="teamDonation">' + t.teamdonationHtml + '</div><div class="captains">' + t.teamcaptainHtml + t.teamcocaptainHtml + '</div><div class="members">' + t.teammembmersHtml + '</div></div>'
 
-                    // Facebook comments
-                    ppHtml += '<div id="facebookComments"></div>';
+				// Facebook comments
+				ppHtml += '<div id="facebookComments"></div>';
 
-                    // Create donation form:
-                    ppHtml += '<div id="givingOverlay"><div id="givingOverlayInner" class="clearfix">'
-                    ppHtml += '<form name="registrationForm" class="registrationForm" action="" method="POST"><h4>' + txt.donation + '</h4><div id="givingLevels"><ol class="options"></ol></div><div id="donateButton"></div>' + /*t.PrintHtml+*/'</form>'
-                    ppHtml += '</div></div>';
+				// Create donation form:
+				ppHtml += '<div id="givingOverlay"><div id="givingOverlayInner" class="clearfix">'
+				ppHtml += '<form name="registrationForm" class="registrationForm" action="" method="POST"><h4>' + txt.donation + '</h4><div id="givingLevels"><ol class="options"></ol></div><div id="donateButton"></div>' + /*t.PrintHtml+*/'</form>'
+				ppHtml += '</div></div>';
 
-                    // Append HTML to Center Column:
-                    ppContainer.append(ppHtml);
+				// Append HTML to Center Column:
+				ppContainer.append(ppHtml);
 
 
-                    /************************************************************
-                    *  Get Data from Team Donation Page
-                    ************************************************************/
-                    if ((typeof FAF.tID !== 'undefined') && (FAF.tID !== null) && (FAF.tID != 0)) {
-                        $.get('/faf/donorReg/donorPledge.asp?ievent=' + FAF.eID + '&supId=0&team=' + FAF.tID, function(teamdata) {
+				/************************************************************
+				*  Get Data from Team Donation Page
+				************************************************************/
+				if ((typeof FAF.tID !== 'undefined') && (FAF.tID !== null) && (FAF.tID != 0)) {
+					$.get('/faf/donorReg/donorPledge.asp?ievent=' + FAF.eID + '&supId=0&team=' + FAF.tID, function(teamdata) {
 
-                            var minDonation = teamdata.split("if(formPointer.elements['addAmount'].value < ")[1];
-                            if ((typeof minDonation !== 'undefined') && (minDonation !== null) && (minDonation != 0)) {
-                                minDonation = minDonation.split('){')[0];
-                                FAF.minDonation = Number(minDonation);
-                            }
-                            var teamBody = $(teamdata).find('.FAFBodyTable');
+						var minDonation = teamdata.split("if(formPointer.elements['addAmount'].value < ")[1];
+						if ((typeof minDonation !== 'undefined') && (minDonation !== null) && (minDonation != 0)) {
+							minDonation = minDonation.split('){')[0];
+							FAF.minDonation = Number(minDonation);
+						}
+						var teamBody = $(teamdata).find('.FAFBodyTable');
 
-                            if (teamBody.html() == null) {
-                                var istart = teamdata.toString().indexOf('<div class=\"FAFBodyTable\">');
-                                teamdata = teamdata.toString().substring(istart);
-                                var iend = teamdata.toString().indexOf('</form>');
-                                teamdata = teamdata.toString().substring(0, iend).replace("<div class=\"FAFBodyTable\">", "").replace("</form>", "");
-                                var tmpDiv = document.createElement("div");
-                                tmpDiv.innerHTML = teamdata;
-                                teamBody = null;
-                                teamBody = $(tmpDiv)
-                            }
-                            var formAction = $(teamBody).find('form[name=registrationForm]').attr('action')
+						if (teamBody.html() == null) {
+							var istart = teamdata.toString().indexOf('<div class=\"FAFBodyTable\">');
+							teamdata = teamdata.toString().substring(istart);
+							var iend = teamdata.toString().indexOf('</form>');
+							teamdata = teamdata.toString().substring(0, iend).replace("<div class=\"FAFBodyTable\">", "").replace("</form>", "");
+							var tmpDiv = document.createElement("div");
+							tmpDiv.innerHTML = teamdata;
+							teamBody = null;
+							teamBody = $(tmpDiv)
+						}
+						var formAction = $(teamBody).find('form[name=registrationForm]').attr('action')
 
-                            // Donation Form		
-                            var ppDonorform = $(teamBody).find('input[name=level]').closest('table');
-                            var ppDonateLevels = ''; // Set Variable
-                            ppDonorform.find('input[name=level]').closest('tr').each(function() {
-                                if ($(this).find('input[type="radio"]').length > 0) {
-                                    var input = $(this).find('td:eq(0)').html();
-                                    var text = $(this).find('td:eq(1)').html();
-                                    if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
-                                        text = text.replace(br, " ");
-                                        text = text.match(regamount);
-                                        if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
-                                            text = text[0].replace("(", "");
-                                            text = text.replace(" +)", "");
-                                            var textFmt = FAF.Methods.formatCurrencyWSymbol(text);
-                                        } else { textFmt = ''; }
-                                    }
-                                    var label;
-                                    if ($(this).find('td:eq(1) a').length > 0) {
-                                        label = $(this).find('td:eq(1) a').html();
-                                        if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
-                                            label.split(br)[0];
-                                        };
-                                    } else {
-                                        label = $(this).find('td:eq(1) b').html();
-                                        if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
-                                            label.split(br)[0];
-                                        };
-                                    }
-                                    ppDonateLevels += '<li>' + input + '<label for="transaction"><span class="transtext"><span class="amt">' + textFmt + '</span> ' + label + '</span></label></li>';
-                                }
-                            });
-                            ppDonateLevels += '<li><input name="level" type="radio" value=""/><label for="transaction"><span class="transtext otheramount">Other Amount: </span><span id="donateAmount"></span></label></li>';
+						// Donation Form		
+						ppDonorform = $(teamBody).find('input[name=level]').closest('table');
+						ppDonateLevels = ''; // Set Variable
+						ppDonorform.find('input[name=level]').closest('tr').each(function() {
+							if ($(this).find('input[type="radio"]').length > 0) {
+								var input = $(this).find('td:eq(0)').html();
+								var text = $(this).find('td:eq(1)').html();
+								if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
+									text = text.replace(br, " ");
+									text = text.match(regamount);
+									if ((typeof text !== 'undefined') && (text !== null) && (text !== 0)) {
+										text = text[0].replace("(", "");
+										text = text.replace(" +)", "");
+										var textFmt = FAF.Methods.formatCurrencyWSymbol(text);
+									} else { textFmt = ''; }
+								}
+								var label;
+								if ($(this).find('td:eq(1) a').length > 0) {
+									label = $(this).find('td:eq(1) a').html();
+									if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
+										label.split(br)[0];
+									};
+								} else {
+									label = $(this).find('td:eq(1) b').html();
+									if ((typeof label !== 'undefined') && (label !== null) && (label !== 0)) {
+										label.split(br)[0];
+									};
+								}
+								ppDonateLevels += '<li>' + input + '<label for="transaction"><span class="transtext"><span class="amt">' + textFmt + '</span> ' + label + '</span></label></li>';
+							}
+						});
+						ppDonateLevels += '<li><input name="level" type="radio" value=""/><label for="transaction"><span class="transtext otheramount">Other Amount: </span><span id="donateAmount"></span></label></li>';
 
-                            $('#givingLevels .options').append(ppDonateLevels);
+						$('#givingLevels .options').append(ppDonateLevels);
 
-                            /************************************************************
-                            *  Additional Modifications
-                            ************************************************************/
+						/************************************************************
+						*  Additional Modifications
+						************************************************************/
 
-                            // Print Donation Form Link
-                            if (teamBody.find('table table table table table td:contains("If you are unable to donate online")').length) {
-                                var printpdf = (teamBody.find('table table table table table td:contains("If you are unable to donate online")').find('a').attr('onclick').match('tmpval=y')) ? 'y' : '';
-                                var printorient = (teamBody.find('table table table table table td:contains("If you are unable to donate online")').find('a').attr('onclick').match('&o=L')) ? '&o=L' : '';
-                                var printHtml = "";
-                                if (t.PrintUrl != '') {
-                                    if (printpdf == 'y') {
-                                        printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&customlinkForPdf=' + encodeURIComponent(t.PrintUrl) + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
-                                    } else {
-                                        printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + t.PrintUrl + '?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
-                                    }
-                                } else {
-                                    printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
-                                }
-                            } else {
-                                printHtml = '';
-                            }
-                            $('form[name="registrationForm"]').append(printHtml);
+						// Print Donation Form Link
+						if (teamBody.find('table table table table table td:contains("If you are unable to donate online")').length) {
+							var printpdf = (teamBody.find('table table table table table td:contains("If you are unable to donate online")').find('a').attr('onclick').match('tmpval=y')) ? 'y' : '';
+							var printorient = (teamBody.find('table table table table table td:contains("If you are unable to donate online")').find('a').attr('onclick').match('&o=L')) ? '&o=L' : '';
+							var printHtml = "";
+							if (t.PrintUrl != '') {
+								if (printpdf == 'y') {
+									printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&customlinkForPdf=' + encodeURIComponent(t.PrintUrl) + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
+								} else {
+									printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + t.PrintUrl + '?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
+								}
+							} else {
+								printHtml = '<div class="printNotice"><a href="#" onclick="javascript:window.open(\'' + FAF.root + '/faf/tools/donationform.asp?ievent=' + FAF.eID + '&tmpid=0&tmpval=' + printpdf + printorient + '&tmpTID=' + FAF.tID + '&isPer=n' + '\',\'reg\',\'menubar=yes,scrollbars=yes,resizable=yes\')">' + t.PrintName + '</a></div>';
+							}
+						} else {
+							printHtml = '';
+						}
+						$('form[name="registrationForm"]').append(printHtml);
 
-                            // Remove link around giving level labels
-                            $('#givingLevels .options .transtext a b').unwrap();
-                            // Add click functions to labels
-                            $('#givingLevels .options li label, #givingLevels .options li span.otheramount').click(function() {
-                                $(this).prev('input').click();
-                                return false;
-                            });
+						// Remove link around giving level labels
+						$('#givingLevels .options .transtext a b').unwrap();
+						// Add click functions to labels
+						$('#givingLevels .options li label, #givingLevels .options li span.otheramount').click(function() {
+							$(this).prev('input').click();
+							return false;
+						});
 
-                            // Add form properties
-                            $('.registrationForm').attr('onSubmit', 'return customFormCheck()');
-                            $('.registrationForm').attr("action", formAction);
-                            $('.registrationForm ol').after($(teamBody).find('input[type=hidden]'));
+						// Add form properties
+						$('.registrationForm').attr('onSubmit', 'return customFormCheck()');
+						$('.registrationForm').attr("action", formAction);
+						$('.registrationForm ol').after($(teamBody).find('input[type=hidden]'));
 
-                            // Set hidden input js value true
-                            $('.registrationForm input[type=hidden][name=js]').attr('value', 'true');
+						// Set hidden input js value true
+						$('.registrationForm input[type=hidden][name=js]').attr('value', 'true');
 
-                            $('#donateAmount').append($(teamBody).find('input[name=addAmount]'));
-                            $('#donateAmount input[name=addAmount]').attr('onblur', '');
-                            $('#donateAmount input[name=addAmount]').keydown(function() {
-                                $(this).closest('label').prev('input').click();
-                            });
+						$('#donateAmount').append($(teamBody).find('input[name=addAmount]'));
+						$('#donateAmount input[name=addAmount]').attr('onblur', '');
+						$('#donateAmount input[name=addAmount]').keydown(function() {
+							$(this).closest('label').prev('input').click();
+						});
 
-                            // Add the new Donate button image to the donate button		
-                            if ($(teamBody).find('input[name="donateToSelfCheckbox"]').length > 0) {
-                                $('#donateButton').html($(teamBody).find('input[name="donateToSelfCheckbox"]').closest('table').parent().html());
-                            } else {
-                                $('#donateButton').html($(teamBody).find('input[name=imageField]').closest('td').html());
-                            }
-                            $('#donateButton input').removeAttr("width").removeAttr("height");
-                            $('#donateButton input[name=imageField]').hide();
-                            $('#donateButton').append('<input type="button" border="0" name="imageFieldNew" id="donateSubmit" value="Donate &raquo;">')
-                            $('#donateSubmit').click(function() {
-                                if (customFormCheck() == true) {
-                                    $('#donateButton input[name=imageField]').click()
-                                }
-                            })
-                            $('#donateButton br').remove();
+						// Add the new Donate button image to the donate button		
+						if ($(teamBody).find('input[name="donateToSelfCheckbox"]').length > 0) {
+							$('#donateButton').html($(teamBody).find('input[name="donateToSelfCheckbox"]').closest('table').parent().html());
+						} else {
+							$('#donateButton').html($(teamBody).find('input[name=imageField]').closest('td').html());
+						}
+						$('#donateButton input').removeAttr("width").removeAttr("height");
+						$('#donateButton input[name=imageField]').hide();
+						$('#donateButton').append('<input type="button" border="0" name="imageFieldNew" id="donateSubmit" value="Donate &raquo;">')
+						$('#donateSubmit').click(function() {
+							if (customFormCheck() == true) {
+								$('#donateButton input[name=imageField]').click()
+							}
+						})
+						$('#donateButton br').remove();
 
-                            // Set form pointers - Does this work?
-                            $('.registrationForm').attr('name', 'registrationForm');
-                            window.formPointer = document.registrationForm;
-                            window.newFormElement = $('form.registrationForm');
+						// Set form pointers - Does this work?
+						$('.registrationForm').attr('name', 'registrationForm');
+						window.formPointer = document.registrationForm;
+						window.newFormElement = $('form.registrationForm');
 
-                        });
-                    }
+					});
+				}
 
-                    /* SIDEBAR */
-                    var ppSidebar = $('#contentTertiary .gutter');
-                    var sidebarHtml = '<div class="sidebarBox">';
+				/* SIDEBAR */
+				var ppSidebar = $('#contentTertiary .gutter');
+				var sidebarHtml = '<div class="sidebarBox">';
 
-                    // Join Team Button
-                    // Join Our Team link
-                    sidebarHtml += '<div class="dataRow clearfix row1">';
-                    if ((typeof t.jointeamlink !== undefined) && (t.jointeamlink !== '')) {
-                        sidebarHtml += '<div id="giveNowButton"><a class="bigButton" href="' + encodeURI(t.jointeamlink) + '">Join Team</a></div>';
-                    }
+				// Join Team Button
+				// Join Our Team link
+				sidebarHtml += '<div class="dataRow clearfix row1">';
+				if ((typeof t.jointeamlink !== undefined) && (t.jointeamlink !== '')) {
+					sidebarHtml += '<div id="giveNowButton"><a class="bigButton" href="' + encodeURI(t.jointeamlink) + '">Join Team</a></div>';
+				}
 
-                    // Donate button:
-                    sidebarHtml += '<div id="joinTeamButton"><a class="smallButton" href="#givingOverlay">Donate Now</a></div>';
-                    sidebarHtml += '</div>';
+				// Donate button:
+				sidebarHtml += '<div id="joinTeamButton"><a class="smallButton" href="#givingOverlay">Donate Now</a></div>';
+				sidebarHtml += '</div>';
 
-                    // Team Goal
-                    if ((typeof t.goal !== 'undefined') && (t.goal !== null)) {
-                        t.goalFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(t.goal, 10)); // formatted fund goal value
-                    }
-                    if ((typeof t.goalFmt !== 'undefined') && (t.goalFmt !== null)) {
-                        sidebarHtml += '<div class="dataRow clearfix row2"><span class="dataRowLabel">Team Goal</span><span class="dataRowValue">' + t.goalFmt + '</span></div>'
-                        t.goalFmtNum = t.goalFmt;
-                    } else {
-                        t.goalFmtNum = '';
-                    }
+				// Team Goal
+				if ((typeof t.goal !== 'undefined') && (t.goal !== null)) {
+					t.goalFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(t.goal, 10)); // formatted fund goal value
+				}
+				if ((typeof t.goalFmt !== 'undefined') && (t.goalFmt !== null)) {
+					sidebarHtml += '<div class="dataRow clearfix row2"><span class="dataRowLabel">Team Goal</span><span class="dataRowValue">' + t.goalFmt + '</span></div>'
+					t.goalFmtNum = t.goalFmt;
+				} else {
+					t.goalFmtNum = '';
+				}
 
-                    // Team Raised
-                    if ((typeof t.raised !== 'undefined') && (t.raised !== null)) {
-                        t.raisedFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(t.raised, 10)); // formatted total raised value
-                    }
-                    if ((typeof t.raisedFmt !== 'undefined') && (t.raisedFmt !== null)) {
-                        sidebarHtml += '<div class="dataRow clearfix row3"><span class="dataRowLabel">Team Raised</span><span class="dataRowValue">' + t.raisedFmt + '</span></div>'
-                    }
+				// Team Raised
+				if ((typeof t.raised !== 'undefined') && (t.raised !== null)) {
+					t.raisedFmt = FAF.Methods.formatCurrencyWSymbol(parseInt(t.raised, 10)); // formatted total raised value
+				}
+				if ((typeof t.raisedFmt !== 'undefined') && (t.raisedFmt !== null)) {
+					sidebarHtml += '<div class="dataRow clearfix row3"><span class="dataRowLabel">Team Raised</span><span class="dataRowValue">' + t.raisedFmt + '</span></div>'
+				}
 
-                    // Team Recruitment Goal
-                    if ((typeof t.recruitmentgoal !== undefined) && (t.recruitmentgoal !== '')) {
-                        sidebarHtml += '<div class="dataRow clearfix row4"><span class="dataRowLabel">Recruitment Goal</span><span class="dataRowValue">' + t.recruitmentgoal + '</span></div>'
-                    }
+				// Team Recruitment Goal
+				if ((typeof t.recruitmentgoal !== undefined) && (t.recruitmentgoal !== '')) {
+					sidebarHtml += '<div class="dataRow clearfix row4"><span class="dataRowLabel">Recruitment Goal</span><span class="dataRowValue">' + t.recruitmentgoal + '</span></div>'
+				}
 
-                    // Team Recruitment Raised
-                    if ((typeof t.membersrecruited !== undefined) && (t.membersrecruited !== '')) {
-                        sidebarHtml += '<div class="dataRow clearfix row5"><span class="dataRowLabel">Total Members</span><span class="dataRowValue">' + t.membersrecruited + '</span></div>'
-                    }
+				// Team Recruitment Raised
+				if ((typeof t.membersrecruited !== undefined) && (t.membersrecruited !== '')) {
+					sidebarHtml += '<div class="dataRow clearfix row5"><span class="dataRowLabel">Total Members</span><span class="dataRowValue">' + t.membersrecruited + '</span></div>'
+				}
 
-                    // Days Left
-                    var today = new Date();
-                    var eventdate = new Date(e.event.startdate)
-                    var daysleft = Math.floor((Date.parse(eventdate) - Date.parse(today)) / 86400000) + 1;
-                    if (daysleft > -1) {
-                        sidebarHtml += '<div class="dataRow clearfix row6"><span class="dataRowLabel">' + txt.daysleft + '</span><span class="dataRowValue">' + daysleft + '</span></div>';
-                    }
+				// Days Left
+				var today = new Date();
+				var eventdate = new Date(e.event.startdate)
+				var daysleft = Math.floor((Date.parse(eventdate) - Date.parse(today)) / 86400000) + 1;
+				if (daysleft > -1) {
+					sidebarHtml += '<div class="dataRow clearfix row6"><span class="dataRowLabel">' + txt.daysleft + '</span><span class="dataRowValue">' + daysleft + '</span></div>';
+				}
 
-                    sidebarHtml += '<div class="dataRow clearfix row7"><span class="dataRowLabel">Progress<span class="dataRowPercentage">0%</span></span><span class="dataRowValue"><div id="bar"><span id="bar_progress"></span></div></div></span>';
+				sidebarHtml += '<div class="dataRow clearfix row7"><span class="dataRowLabel">Progress<span class="dataRowPercentage">0%</span></span><span class="dataRowValue"><div id="bar"><span id="bar_progress"></span></div></div></span>';
 
-                    // Append Sidebar HTML
-                    sidebarHtml += "</div>";
+				// Append Sidebar HTML
+				sidebarHtml += "</div>";
 
-                    // Honor Roll
-                    sidebarHtml += '<h6 class="sidebarTitle honorRollTitle">Honor Roll</h6><div id="honorRollFeed" class="clearfix"><div class="honorRollFeedInner clearfix"></div></div>';
+				// Honor Roll
+				sidebarHtml += '<div id="wrapHonorRoll" style="display:none;"><h6 class="sidebarTitle honorRollTitle">' + txt.honorroll + '</h6><div id="honorRollFeed" class="clearfix"></div></div>';
 
-                    ppSidebar.prepend(sidebarHtml);
+				ppSidebar.prepend(sidebarHtml);
 
-                    // Activate therm:
-                    if (t.goal == "") { t.goal = 0; }
-                    var raisedPercentage = (parseInt(t.raised) >= parseInt(t.goal)) ? 100 : Math.round(parseInt(t.raised) / parseInt(t.goal) * 100);
-                    $('.dataRowPercentage').text(raisedPercentage + '%');
-                    var counterWidth = (parseInt(t.raised) > parseInt(t.goal)) ? '100%' : raisedPercentage + "%";
-                    $('#bar_progress').css('width', counterWidth);
+				// Activate therm:
+				if (t.goal == "") { t.goal = 0; }
+				var raisedPercentage = (parseInt(t.raised) >= parseInt(t.goal)) ? 100 : Math.round(parseInt(t.raised) / parseInt(t.goal) * 100);
+				$('.dataRowPercentage').text(raisedPercentage + '%');
+				var counterWidth = (parseInt(t.raised) > parseInt(t.goal)) ? '100%' : raisedPercentage + "%";
+				$('#bar_progress').css('width', counterWidth);
 
-                    // Activate Donation Modal:
-                    setTimeout(function() {
-                        if ($.colorbox) {
-                            $('#joinTeamButton a').colorbox({ href: "#givingOverlay", width: "550px", maxWidth: "100%", height: "50%", maxHeight: "700px", inline: true, opacity: 0.75 });
-                            $('#teamList .teamDonation dt:contains("General Team Donation")').html('<a id="teamMembersDonation" href="#givingOverlay">General Team Donation</a>');
-                            $('.teamDonation #teamMembersDonation').colorbox({ href: "#givingOverlay", width: "550px", maxWidth: "100%", height: "50%", maxHeight: "700px", inline: true, opacity: 0.75 });
-                        }
-                    }, 10);
+				// Activate Donation Modal:
+				setTimeout(function() {
+					if ($.colorbox) {
+						$('#joinTeamButton a').colorbox({ href: "#givingOverlay", width: "550px", maxWidth: "100%", height: "50%", maxHeight: "700px", inline: true, opacity: 0.75 });
+						$('#teamList .teamDonation dt:contains("General Team Donation")').html('<a id="teamMembersDonation" href="#givingOverlay">General Team Donation</a>');
+						$('.teamDonation #teamMembersDonation').colorbox({ href: "#givingOverlay", width: "550px", maxWidth: "100%", height: "50%", maxHeight: "700px", inline: true, opacity: 0.75 });
+					}
+				}, 10);
 
-                    // Hide Members in Team Members list that have undisclosed written next to their names.
-                    $(ppBodyTable).find('table table table table td b:contains("Members:")').closest('table').find('tr:not(:first):not(:eq(1))').each(function() {
-                        var txt = $('td:eq(1)', this).text()
-                        if (txt.match('Undisclosed')) {
-                            var link = $('td:first a', this).attr('href');
-                            $('#teamMembersList a[href="' + link + '"]').parent().next().text('');
-                        }
-                    });
-
-                    // Honor Roll
-                    function hideHonorRoll() {
-                        $('.honorRollTitle, #honorRollFeed').remove();
-                    }
-
-                    // Get honor roll to donor count (FAF.tID or fafJSONteam.tid)
-                    if ((typeof t.tid !== 'undefined') && (t.tid !== null) && (t.tid != 0) && (FAF.Options.hideHonorRoll != true) && ($.xml2json)) {
-                        $.ajax({
-                            type: "GET",
-                            cache: false,
-                            url: '/gadgets/data/honorroll.aspx?tid=' + t.tid + '&eid=' + FAF.eID,
-                            dataType: 'html',
-                            success: function(honordata) {
-                                var json = $.xml2json(honordata);
-                                if ($(json.honoritem).length) {
-                                    var html = '';
-                                    var num = 0;
-                                    $(json.honoritem).each(function(index, honoritem) {
-                                        if (honoritem.scrolltypeid == 1) {
-											num = num+1;
-											html += '<li class="honorItem"><div class="gutter">'
-												+ '<span class="honorAmount">$'+honoritem.amount+'</span>'
-												+ '<span class="honorNameFrom">'+honoritem.namefrom+'</span><br />'
-												+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
-												+ '</div></li>';
-										}
-										if (honoritem.scrolltypeid == 2) {
-											num = num+1;
-											html += '<li class="honorItem"><div class="gutter">'
-												+ '<span class="honorAmount"></span>'
-												+ '<span class="honorNameFrom">'+honoritem.namefrom+'</span><br />'
-												+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
-												+ '</div></li>';
-										}
-                                    });
-                                    $('#honorRollFeed .honorRollFeedInner').append('<ul class="honorRollList">' + html + '</ul>');
-                                    // Remove non breaking space from honor roll from name
-                                    $('#honorRollFeed .honorNameFrom').each(function() {
-                                        $(this).html($(this).html().replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' '));
-                                    });
-                                    if (num > 4) {
-                                        $('#honorRollFeed').after('<div id="honorRollControls"><a href="#" id="ticker-previous">Previous</a> / <a href="#" id="ticker-next">Next</a> / <a id="ticker-stop" href="#">Stop</a> / <a id="ticker-start" href="#">Start</a></div>');
-                                        $('#honorRollFeed .honorRollFeedInner').totemticker({
-                                            row_height: '63px',
-                                            next: '#ticker-next',
-                                            previous: '#ticker-previous',
-                                            stop: '#ticker-stop',
-                                            start: '#ticker-start',
-                                            speed: 1200,
-                                            interval: 5000,
-                                            max_items: FAF.Options.honorRoll.count
-                                        });
-                                    }
-                                    // hide if there are no donations, hide honorRoll and totalDonors
-                                    else if (num <= 0) {
-                                        hideHonorRoll()
-                                    }
-                                } else {
-                                    hideHonorRoll()
-                                }
-                            },
-                            error: function(xhr, textStatus, errorThrown) {
-                                hideHonorRoll()
-                            }
-                        });
-                    } else { hideHonorRoll() }
-                }
-            });
+				// Hide Members in Team Members list that have undisclosed written next to their names.
+				$(ppBodyTable).find('table table table table td b:contains("Members:")').closest('table').find('tr:not(:first):not(:eq(1))').each(function() {
+					var txt = $('td:eq(1)', this).text()
+					if (txt.match('Undisclosed')) {
+						var link = $('td:first a', this).attr('href');
+						$('#teamMembersList a[href="' + link + '"]').parent().next().text('');
+					}
+				});
+				
+			}
         },
 
 
@@ -1012,7 +845,7 @@ FAF = {
 		*/
 
 		logo: function() {
-			var img = $(".eventLogo img").css('visibility','hidden');
+			var img = $('#logo').find('div.eventLogo img').css('visibility','hidden');
 			var counter = 0;
 			var imgWidth;
 			var imgHeight;
@@ -1061,65 +894,216 @@ FAF = {
 			});
 		},
 
-        therm: function(amount) {
-            setTimeout(function() {
+		therm: function(amount) {
+		
+			var o = fafJSONoptions,
+				e = FAF.Data.event;
 
-                var o = fafJSONoptions,
-					e = FAF.Data.event;
+			var fundbar = $('#fundbar'),
+				thermAmount = (amount == null) ? (e.raised != "") ? parseInt(e.raised) : 0 : parseInt(amount),
+				startWidth = 0,
+				goal = ((o.thermometer.customGoal != "" && o.thermometer.customGoal != null) || e.goal == "" || e.goal == null) ? parseInt(o.thermometer.customGoal) : parseInt(e.goal);
+				
+			var percentage = thermAmount/goal;
+				percentage = (percentage >= 1) ? "100%" : percentage*100 + "%";
+			
+			$(document).ready(function() {
+			
+				fundbar.find('td.fundbarGoal div.fundValue').text(FAF.Methods.formatCurrencyWSymbol(goal));
+				
+				setTimeout(function() {
+					
+					var counter = fundbar.find('td.fundbarRaised div.fundValue').text('$0'),
+						meter = fundbar.find('div#devmeter');
+						
+					if (startWidth > (percentage.replace('%','')/100)*fundbar.find('div.thermometer').width()) {
+					
+						percentage = startWidth+'px';
+						meter.width(percentage);
+						counter.text(FAF.Methods.formatCurrencyWSymbol(thermAmount));
+						
+					} else {
+						
+						meter.width(startWidth).animate({
+							width: percentage
+						}, {
+							step: function(now, fx) {
+								counter.text(FAF.Methods.formatCurrencyWSymbol(Math.round((now/100)*thermAmount)));
+							},
+							duration: 3500,
+							complete: function() {
+								counter.text(FAF.Methods.formatCurrencyWSymbol(thermAmount));
+							}
+						}).css('overflow','visible');
+					}
+				},2000);
+			});
+			
+		},
+		
+		honorRoll: function() {
+			
+			// global vars
+			var container = $('#wrapHonorRoll'), 
+				feedContainer, data, id, url;
+			
+			// methods
+			var methods = {
+			
+				setupHonorData: function() {
+					// team page
+					if (typeof fafJSONteam != "undefined") {
+						data = fafJSONteam;
+						id = data.tid;
+						url = '/gadgets/data/honorroll.aspx?tid='+id+'&eid='+FAF.Data.event.id;
+					}
+					// participant page
+					else if (typeof fafJSONparticipant != "undefined" && fafJSONparticipant.sid != "0") {
+						data = fafJSONparticipant;
+						id = data.sid;
+						url = '/gadgets/data/honorroll.aspx?sid='+id+'&eid='+FAF.Data.event.id;
+					}
+					// general donation
+					else {
+						data = id = url = null;
+					}
+				},
+				
+				createHonorRoll: function(json) {
+					if ($(json.honoritem).length) {
+					
+						feedContainer = container.find('div#honorRollFeed');
+						var html = '<div class="honorRollFeedInner clearfix">',
+							num = 0;
+							
+						$(json.honoritem).each(function(index, honoritem) {
+							
+							// First check if donation amount is greater than zero (pending donations):
+							if (parseInt(honoritem.amount) > 0) {
+								
+								// Then, check if pledge entry:
+								if (honoritem.namefrom.indexOf('From')>-1 && honoritem.nameto.indexOf('From')>-1) {
+									num = num+1;
+									html += '<li class="honorItem pledgeItem"><div class="gutter">'
+										+ '<span class="honorAmount">'+FAF.Methods.formatCurrencyWSymbol(honoritem.amount)+'</span>'
+										+ '<span class="honorNameFrom">'+honoritem.nameto.replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' ')+'</span><br />'
+										+ '<span class="honorNameTo"></span>'
+										+ '</div></li>';
+								} else
+								if (honoritem.scrolltypeid == 1) {
+									num = num+1;
+									html += '<li class="honorItem"><div class="gutter">'
+										+ '<span class="honorAmount">'+FAF.Methods.formatCurrencyWSymbol(honoritem.amount)+'</span>'
+										+ '<span class="honorNameFrom">'+honoritem.namefrom.replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' ')+'</span><br />'
+										+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
+										+ '</div></li>';
+								} else
+								if (honoritem.scrolltypeid == 2) {
+									num = num+1;
+									html += '<li class="honorItem"><div class="gutter">'
+										+ '<span class="honorAmount"></span>'
+										+ '<span class="honorNameFrom">'+honoritem.namefrom.replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' ')+'</span><br />'
+										+ '<span class="honorNameTo">'+honoritem.nameto+'</span>'
+										+ '</div></li>';
+								}
+								
+							}
+							
+						});
+						html = '<ul class="honorRollList">' + html + '</ul>';
+						html += '</div>';
+						feedContainer.append(html);
+					  
+						if (num > FAF.Options.honorRoll.count) {
+							feedContainer.after('<div id="honorRollControls"><a href="#" id="ticker-previous">Previous</a> / <a href="#" id="ticker-next">Next</a> / <a id="ticker-stop" href="#">Stop</a> / <a id="ticker-start" href="#">Start</a></div>');
+							feedContainer.find('.honorRollFeedInner').totemticker({
+								row_height: '63px',
+								next: '#ticker-next',
+								previous: '#ticker-previous',
+								stop: '#ticker-stop',
+								start: '#ticker-start',
+								speed: 1200,
+								interval: 5000,
+								max_items: FAF.Options.honorRoll.count
+							});
+						}
+						
+						container.fadeIn();
+					}
+					
+				}
+				
+			};
+			
+			// get JSON object
+			if (container.length) {
+				
+				methods.setupHonorData();
+				
+				// General donation page:
+				if (data == null) {
+					
+					$('#contentTertiary').find('div.leaderboard').has('script').addClass('javaHonorRoll');
+					var javaHR = $('#contentTertiary').find('.javaHonorRoll script').html();
+	
+					if (javaHR != null) {
+					
+						var javaHR1 = javaHR.split('document.write("')[1].split('");')[0].replace(/\\"/g,"'");
+	
+						var namelist = javaHR1.split("'NameList'")[1].split("'>")[0].split("='")[1];
+							namelist = unescape(escape(namelist).replace(/%A0/g,""));
+						
+						var names = namelist.split("|"),
+							nameout = '', 
+							fullname = [],
+							honorlist = {};
+							
+						honorlist.honoritem = [];
+	
+						for (var i = 0; i < names.length; i++) {
+							names[i] = $.trim(names[i]);
+							if (nameout.indexOf(names[i]) == -1) {
+								honorlist.honoritem[i] = {
+									"amount"		: "",
+									"namefrom"		: "",
+									"nameto"		: "",
+									"scrolltypeid"	: "1"
+								}
+								honorlist.honoritem[i]['amount'] = names[i].split('~')[1].split('.')[0].replace(/[^0-9]/g, '');
+								honorlist.honoritem[i]['namefrom'] = names[i].split('~')[2];
+								honorlist.honoritem[i]['nameto'] = names[i].split('~')[4];
+								if (honorlist.honoritem[i]['amount'] == ''){
+									honorlist.honoritem[i]['scrolltypeid'] = "2";
+								}
+							}
+						}
+						methods.createHonorRoll(honorlist);
+					}
+					
+				}
+				
+				// Participant or Team page:
+				else {
+					
+					$.ajax({
+						type: "GET",
+						cache : false,
+						url: url,
+						dataType: 'html',
+						success: function(honordata) {
+							var json = $.xml2json(honordata);
+							methods.createHonorRoll(json);
+						},
+						error: function(xhr, textStatus, errorThrown) {
+							console.log("ERROR: Honor Roll API Service Unavailable.");
+						}
+					});
+					
+				}
+				
+			}
 
-                var thermAmount = (amount == null) ? parseInt(e.raised) : parseInt(amount);
-
-                var outerDiv = $('.thermometer'),
-					counterDiv = $('#devmeter'),
-					counterVal = $('.fundbarThermometer .thermRaisedValue, .fundbarRaised .fundValue'),
-					starttime = new Date(),
-					now,
-					timespan,
-					curNum = 0,
-					divWidth,
-					start = thermAmount / 10,
-					end = thermAmount,
-					rate = thermAmount / 60,
-					delay = 1,
-					counter = $('#devmeter'),
-					max = $('.thermometer').width(),
-					goal = ((o.thermometer.customGoal != "" && o.thermometer.customGoal != null) || e.goal == "" || e.goal == null) ? parseInt(o.thermometer.customGoal) : parseInt(e.goal);
-                	goal = (parseInt(thermAmount) > parseInt(goal)) ? thermAmount : goal;
-                var ppx = (goal != 0) ? max / goal : max / thermAmount,
-					m = FAF.Methods;
-
-                var update = function() {
-                    now = new Date();
-                    timespan = (now.valueOf() - starttime.valueOf()) / 50;
-                    curNum = Math.round(start + (timespan * rate));
-                    divWidth = curNum * ppx;
-                    if (curNum >= end) {
-                        divWidth = (thermAmount * ppx >= max) ? max : thermAmount * ppx;
-                        var percent = divWidth / max * 100;
-                        counterDiv.width(percent + "%");
-                        counterVal.text(m.formatCurrencyWSymbol(end));
-                        return;
-                    } else {
-                        counterVal.text(m.formatCurrencyWSymbol(curNum));
-                        // Only animate if divWidth is greater than FAF.Options.therm.minWidth 
-                        // or less than the therm's width (max)
-                        var percent = divWidth / max * 100;
-                        if ((divWidth >= FAF.Options.therm.minWidth && divWidth <= max)) {
-                            counterDiv.width(percent + "%");
-                        } else if (divWidth > max) {
-                            counterDiv.width("100%");
-                        }
-                        setTimeout(update, delay);
-                    }
-                };
-                if (counterDiv != null) {
-                    var startWidth = (FAF.Options.therm.minWidth != 0 && FAF.Options.therm.minWidth != null) ? FAF.Options.therm.minWidth + "px" : "0px";
-                    counterDiv.width(startWidth);
-                    update();
-                }
-            }, 3000);
-
-        },
+		},
         
         headquartersMenu: function() {
         	
@@ -1436,6 +1420,7 @@ FAF = {
                 $('.FAFBodyTable').show();
             }
         }
+        
     }
 }
 
@@ -1452,6 +1437,7 @@ FAF.go = function(callback) {
             m.headquartersMenu();
             m.personalPage();
             m.teamPage();
+            m.honorRoll();
             m.youTube();
             m.facebook();
             m.shareThis();
